@@ -1,0 +1,15 @@
+fn clamp(x, lower, upper) {
+    if x < lower {
+        return lower
+    }
+    if !(x < upper) {
+        return upper
+    }
+    return x
+}
+
+fn start() {
+    let x = 5
+    let y = clamp(x, 0, 10)
+    let z = clamp(x, 10, 20)
+}

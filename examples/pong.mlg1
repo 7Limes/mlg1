@@ -1,0 +1,149 @@
+#width 100
+#height 100
+#tickrate 60
+
+define SCALE 10
+
+define PADDLE_SIZE 200
+define PADDLE_THICKNESS 2
+define PADDLE_SPEED 10
+
+define BALL_SIZE 20
+define BALL_INITIAL_VX 10
+define BALL_INITIAL_VY 5
+
+
+fn abs(x) {
+    return x * (2 * !(x < 0) - 1)
+}
+
+fn clamp(x, lower, upper) {
+    if x < lower {
+        return lower
+    }
+    if !(x < upper) {
+        return upper
+    }
+    return x
+}
+
+fn reset_ball() {
+    ball_x = CENTER_X - HALF_BALL_SIZE
+    ball_y = CENTER_Y - HALF_BALL_SIZE
+    ball_vx = BALL_INITIAL_VX
+    ball_vy = BALL_INITIAL_VY
+}
+
+
+fn start() {
+    global PADDLE_SIZE_SCREEN = PADDLE_SIZE / SCALE
+    global PADDLE_POS_CLAMP_UPPER = HEIGHT * SCALE - PADDLE_SIZE
+    global CENTER_X = WIDTH * SCALE / 2
+    global CENTER_Y = HEIGHT * SCALE / 2
+    global BALL_SIZE_SCREEN = BALL_SIZE / SCALE
+    global HALF_BALL_SIZE = BALL_SIZE / 2
+
+    let paddle_center_y = CENTER_Y - PADDLE_SIZE / 2
+    global p1_pos = paddle_center_y
+    global p2_pos = paddle_center_y
+    global p1_score = 0
+    global p2_score = 0
+
+    global ball_x = 0
+    global ball_y = 0
+    global ball_vx = 0
+    global ball_vy = 0
+    reset_ball()
+}
+
+fn player_input() {
+    p1_pos = p1_pos + (DOWN * PADDLE_SPEED - UP * PADDLE_SPEED)
+    p1_pos = clamp(p1_pos, 0, PADDLE_POS_CLAMP_UPPER)
+
+    p2_pos = p2_pos + (B * PADDLE_SPEED - A * PADDLE_SPEED)
+    p2_pos = clamp(p2_pos, 0, PADDLE_POS_CLAMP_UPPER)
+}
+
+
+fn move_ball() {
+    // X movement
+    let next_ball_x = ball_x + ball_vx
+    let next_ball_right = next_ball_x + BALL_SIZE
+    let next_ball_y = ball_y + ball_vy
+    let next_ball_bottom = next_ball_y + BALL_SIZE
+
+    // Bouncing off left paddle
+    if (next_ball_x < 50 + PADDLE_THICKNESS) 
+        * (p1_pos < next_ball_bottom)
+        * (next_ball_y < p1_pos + PADDLE_SIZE) {
+        ball_vx = abs(ball_vx)
+
+        // Change vertical direction
+        let p1_center = p1_pos + PADDLE_SIZE / 2
+        if next_ball_y < p1_center {
+            ball_vy = -abs(ball_vy)
+        }
+        else {
+            ball_vy = abs(ball_vy)
+        }
+        ball_vy = ball_vy + (DOWN - UP) * 2
+    }
+
+    // Bouncing off right paddle
+    if ((WIDTH * SCALE - 50 - PADDLE_THICKNESS) < next_ball_right)
+        * (p2_pos < next_ball_bottom)
+        * (next_ball_y < p2_pos + PADDLE_SIZE) {
+        ball_vx = -abs(ball_vx)
+        
+        let p2_center = p2_pos + PADDLE_SIZE / 2
+        if next_ball_y < p2_center {
+            ball_vy = -abs(ball_vy)
+        }
+        else {
+            ball_vy = abs(ball_vy)
+        }
+        ball_vy = ball_vy + (B - A) * 2
+    }
+
+    // Scoring
+    if next_ball_x < 0 {
+        p2_score = p2_score + 1
+        reset_ball()
+        ball_vx = BALL_INITIAL_VX
+    }
+    if WIDTH * SCALE < next_ball_right {
+        p1_score = p1_score + 1
+        reset_ball()
+        ball_vx = -BALL_INITIAL_VX
+    }
+
+    // Y movement
+    if (next_ball_y < 0) + (HEIGHT * SCALE < next_ball_bottom) {
+        ball_vy = ball_vy * -1
+    }
+
+    ball_x = ball_x + ball_vx
+    ball_y = ball_y + ball_vy
+}
+
+
+
+fn tick() {
+    player_input()
+    move_ball()
+
+    // Background
+    color(0, 0, 0)
+    rect(0, 0, WIDTH, HEIGHT)
+
+    // Draw players
+    color(255, 255, 255)
+    rect(5, (p1_pos / SCALE), PADDLE_THICKNESS, PADDLE_SIZE_SCREEN)
+    rect((WIDTH - 5 - PADDLE_THICKNESS), (p2_pos / SCALE), PADDLE_THICKNESS, PADDLE_SIZE_SCREEN)
+
+    // Draw ball
+    rect(
+        (ball_x / SCALE), (ball_y / SCALE), 
+        BALL_SIZE_SCREEN, BALL_SIZE_SCREEN
+    )
+}

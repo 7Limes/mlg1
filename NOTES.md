@@ -1,0 +1,7 @@
+This is a collection of notes that refer to certain pieces of code within the compiler.
+I felt that these pieces required further elaboration to explain the reason for their inclusion.
+
+1. I initially wanted the returning code to be added only when any function was actually called, but I decided that was too much effort, so I'll leave it up to the programmer to omit unused functions.
+2. By default, the compiler reserves no excess memory, but we still have to add at least enough memory for the reserved memory, registers, and stack memory. That's why we add the value of the heap address, because those things take up exactly that much space.
+3. This inversion occurs because when the expression is `false`, we actually want to skip the block, meaning we have to convert the `false` into `true` so that the `jmp` instruction actually jumps. Sometimes, however, the expression itself may contain a not (`!`) operator. This can result in two consecutive inversions that cancel each other out. This code removes those consecutive inversions. (Not in the most elegant way, might I add)
+4. This placeholder string is only for unary operators. It's totally okay to pass `'placeholder'` into `CompilerData.get_arithmetic_register`, since it just won't be considered a register and `amount_registers` will remain 1 in the function, giving us the behavior we want.
