@@ -1,6 +1,6 @@
 # mlg1
 
-A Mid Level complexity language for developing g1 programs.
+A Mid Level complexity language for developing [g1](https://github.com/7Limes/g1) programs.
 
 Main Caveats:
 - No stack frames (no recursion allowed)
