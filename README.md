@@ -42,10 +42,10 @@ fn tick() {
 Meta variables are denoted with a `#` character, followed by an identifier and an integer.
 Here's a list of valid meta variables:
 
-- `width` - The width of the window (default: 100)
-- `height` - The height of the window (default: 100)
-- `tickrate` - The rate at which `tick` will be called. (default: 60)
-- `memory` - The amount of additional memory to allocate for the program. (default: 0)
+- `#width` - The width of the window (default: 100)
+- `#height` - The height of the window (default: 100)
+- `#tickrate` - The rate at which `tick` will be called. (default: 60)
+- `#memory` - The amount of additional memory to allocate for the program. (default: 0)
 
 
 ### Builtin Functions
