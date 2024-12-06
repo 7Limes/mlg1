@@ -335,9 +335,7 @@ def convert_to_rpn(tokens: list) -> list:
     operator_stack = []
     operator_types = (mlg1Parser.OperatorContext, mlg1Parser.UnaryOperatorContext)
     
-    # Helper function to get operator precedence
     def get_precedence(op: mlg1Parser.OperatorContext | mlg1Parser.UnaryOperatorContext) -> int:
-        # Customize these precedence levels according to your grammar
         op_text = op.getText()
         if isinstance(op, mlg1Parser.UnaryOperatorContext):
             return 4
@@ -345,49 +343,44 @@ def convert_to_rpn(tokens: list) -> list:
             return 3
         elif op_text in ['+', '-']:
             return 2
-        return 1  # Default precedence for other operators
+        return 1  # default precedence for other operators
 
-    # Process each token in the expression
+    
     for token in tokens:
-        # If it's a primary (number, variable) or function call, add to output
+        # primary
         if isinstance(token, mlg1Parser.PrimaryContext) or \
            isinstance(token, mlg1Parser.FunctionCallContext):
             output.append(token)
             
-        # If it's an operator
+        # operator
         elif isinstance(token, operator_types):
-            # While there's an operator on top of the stack with greater or equal precedence
             while (operator_stack and 
                   isinstance(operator_stack[-1], operator_types) and
                   get_precedence(operator_stack[-1]) >= get_precedence(token)):
                 output.append(operator_stack.pop())
             operator_stack.append(token)
             
-        # If it's a left parenthesis
+        # left parenthesis
         elif isinstance(token, TerminalNodeImpl) and token.getText() == '(':
             operator_stack.append(token)
             
-        # If it's a right parenthesis
+        # right parenthesis
         elif isinstance(token, TerminalNodeImpl) and token.getText() == ')':
-            # Pop operators until we find the matching left parenthesis
             while operator_stack and not (
                 isinstance(operator_stack[-1], TerminalNodeImpl) and 
                 operator_stack[-1].getText() == '('
             ):
                 output.append(operator_stack.pop())
                 
-            # Pop the left parenthesis
-            if operator_stack:  # Check if there was a matching left parenthesis
+            if operator_stack:
                 operator_stack.pop()
                 
-            # If there's a function call on top of the stack, add it to output
+            # function call
             if operator_stack and isinstance(operator_stack[-1], mlg1Parser.FunctionCallContext):
                 output.append(operator_stack.pop())
     
-    # Pop any remaining operators from the stack
     while operator_stack:
         top = operator_stack[-1]
-        # Don't add parentheses to the output
         if isinstance(top, TerminalNodeImpl) and top.getText() in ['(', ')']:
             operator_stack.pop()
             continue
