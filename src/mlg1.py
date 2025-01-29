@@ -33,7 +33,7 @@ LOCAL_VAR_ADDRESS = 64
 
 INDENT_SIZE = 4
 
-INTEGER_REGEX = re.compile('-?\d+')
+INTEGER_REGEX = re.compile(r'-?\d+')
 
 RETURN_CODE = [
     'return:',
@@ -115,7 +115,7 @@ BUILTIN_FUNCTIONS = {
         'color {a0} {a1} {a2}'
     ],
     'point': [
-        'point {a0} {a1} {a2} {a3}'
+        'point {a0} {a1}'
     ],
     'line': [
         'line {a0} {a1} {a2} {a3}'
