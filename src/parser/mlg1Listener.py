@@ -26,6 +26,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#loadFile.
+    def enterLoadFile(self, ctx:mlg1Parser.LoadFileContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#loadFile.
+    def exitLoadFile(self, ctx:mlg1Parser.LoadFileContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#constantDefinition.
     def enterConstantDefinition(self, ctx:mlg1Parser.ConstantDefinitionContext):
         pass

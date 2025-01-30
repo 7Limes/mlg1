@@ -16,6 +16,7 @@ import sys
 import os
 import dataclasses
 import re
+from data import get_parsed_file_size
 
 
 CALL_STACK_POINTER_ADDRESS = 14
@@ -60,6 +61,8 @@ GLOBAL_NAMESPACE = {
     'TICKRATE': 11,
     'DELTA': 12
 }
+
+HEAP_VARIABLE_NAME = 'HEAP'
 
 RESERVED_NAMES = {'let', 'fn', 'return'}
 RESERVED_NAMES.update(GLOBAL_NAMESPACE.keys())
@@ -123,13 +126,19 @@ BUILTIN_FUNCTIONS = {
     'rect': [
         'rect {a0} {a1} {a2} {a3}'
     ],
+    # 'get': [
+    #     'add {return_register} {a0} {heap_address}',
+    #     'movp {return_register} ${return_register}'
+    # ],
+    # 'set': [
+    #     'add {return_register} {a0} {heap_address}',
+    #     'mov ${return_register} {a1}'
+    # ]
     'get': [
-        'add {return_register} {a0} {heap_address}',
-        'movp {return_register} ${return_register}'
+        'movp {return_register} {a0}'
     ],
     'set': [
-        'add {return_register} {a0} {heap_address}',
-        'mov ${return_register} {a1}'
+        'mov ${a0} {a1}'
     ]
 }
 
@@ -541,6 +550,7 @@ class InitialListener(BaseListener):
         self.global_namespace: dict[str, int] = GLOBAL_NAMESPACE.copy()
         self.constant_namespace: dict[str, int] = {}
         self.current_function: str = None
+        self.files_to_load: dict[str, str] = {}
         self.compiler_flags = CompilerFlags()
     
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
@@ -600,7 +610,30 @@ class InitialListener(BaseListener):
         name = ctx.NAME().getText()
         value = int(ctx.INTEGER().getText())
         self.constant_namespace[name] = value
+    
+    def enterLoadFile(self, ctx):
+        name = ctx.NAME().getText()
+        path = ctx.FILE_PATH().getText()
+        self.files_to_load[name] = path[1:-1]
+    
 
+    def after_walk(self) -> list[str]:
+        """
+        Called after this listener has finished walking the parse tree.
+        Adds addresses of loaded files to the global namespace and sets the HEAP address variable
+        """
+        data_file_rules = []
+        for var_name, file_path in self.files_to_load.items():
+            data_file_rules.append(f'{self.current_address} f {file_path}')
+            self.constant_namespace[var_name] = self.current_address
+            with open(file_path, 'rb') as f:
+                file_bytes = f.read()
+            file_extension = os.path.splitext(file_path)[1]
+            self.current_address += get_parsed_file_size(file_bytes, file_extension)
+        
+        self.constant_namespace[HEAP_VARIABLE_NAME] = self.current_address
+
+        return data_file_rules
 
 class MainListener(BaseListener):
     def __init__(self, compiler_data: CompilerData) -> None:
@@ -718,16 +751,17 @@ class MainListener(BaseListener):
                 self.compiler_data.code_writer.add_line(popped)
 
 
-def get_compiler_data(program: mlg1Parser.ProgramContext, source_lines: list[str], walker: ParseTreeWalker) -> CompilerData:
+def get_compiler_data(program: mlg1Parser.ProgramContext, source_lines: list[str], walker: ParseTreeWalker) -> tuple[CompilerData, list[str]]:
     listener = InitialListener(source_lines)
     walker.walk(listener, program)
+    data_file_rules = listener.after_walk()
     cd = CompilerData(
         source_lines, listener.meta_variables,
         listener.function_namespaces, listener.global_namespace, listener.constant_namespace,
         listener.compiler_flags, listener.current_address, CodeWriter(), []
     )
     cd.meta_variables['memory'] += cd.heap_address  # offset requested memory by the stack memory size [note 2]
-    return cd
+    return cd, data_file_rules
 
 
 def validate_cli_args(argv: list[str]):
@@ -771,12 +805,16 @@ def main(argv) -> int:
     
     walker = ParseTreeWalker()
     
-    compiler_data = get_compiler_data(program, source_lines, walker)
+    compiler_data, data_file_rules = get_compiler_data(program, source_lines, walker)
 
     main_listener = MainListener(compiler_data)
     walker.walk(main_listener, program)
     compiler_data.code_writer.add_line('end:')
     main_listener.compiler_data.code_writer.write_file(argv[2])
+    if data_file_rules:
+        data_file_cw = CodeWriter()
+        data_file_cw.add_lines(data_file_rules)
+        data_file_cw.write_file(argv[2] + 'd')
 
     return 0
 

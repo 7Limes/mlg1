@@ -19,6 +19,8 @@ Here's the basic layout of a program:
 ```
 [meta variables]
 
+[file loading]
+
 [constant definitions]
 
 [functions]
@@ -48,6 +50,17 @@ Here's a list of valid meta variables:
 - `#memory` - The amount of additional memory to allocate for the program. (default: 0)
 
 
+### File Loading
+
+Files can be loaded by specifying an identifier and file path:
+
+```
+$PLACEHOLDER_IMG "assets/placeholder.png"
+```
+
+The identifier will be registered as a constant variable containing the address of the loaded file. To access the data, use the `get` function.
+The compiler will output a `.g1d` file alongside the code file that can be used with the assembler.
+
 ### Builtin Functions
 
 - `color(r, g, b)`
@@ -60,8 +73,8 @@ Here's a list of valid meta variables:
   - Draw a rectangle.
 - `get(address)`
   - Get a value from open memory.
-  - Requires that `#memory` is set to something greater than `0`.
+  - Requires that `#memory` is set to something greater than `0` or a file is loaded into memory.
 - `set(address, value)`
   - Set a value in open memory.
-  - Requires that `#memory` is set to something greater than `0`.
+  - Requires that `#memory` is set to something greater than `0` or a file is loaded into memory.
 

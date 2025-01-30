@@ -1,9 +1,12 @@
 grammar mlg1;
 
-program: metaVariable* constantDefinition* function+;
+program: metaVariable* loadFile* constantDefinition* function+;
 
 META_VARIABLE_NAME: 'width'|'height'|'memory'|'tickrate';
 metaVariable: '#' META_VARIABLE_NAME INTEGER;
+
+FILE_PATH: '"' (~[ \t\r\n] | '\\' [a-zA-Z0-9_.])+ '"';
+loadFile: '$' NAME FILE_PATH;
 
 constantDefinition: 'define' NAME INTEGER;
 
