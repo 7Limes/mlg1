@@ -1,0 +1,41 @@
+#width 100
+#height 100
+#tickrate 60
+#memory 0
+
+$img_placeholder "wip-programs/assets/placeholder.png"
+
+fn draw_texture(address, x, y) {
+    let img_width = get(address)
+    let img_height = get(address+1)
+    let img_area = img_width * img_height
+
+    address = address + 2
+    let i = 0
+    while i < img_area {
+        let pixel_data = get(address+i)
+        let r = pixel_data % 256
+        pixel_data = pixel_data / 256
+        let g = pixel_data % 256
+        pixel_data = pixel_data / 256
+        let b = pixel_data % 256
+
+        color(r, g, b)
+        let px = i % img_width + x
+        let py = i / img_height + y
+        point(px, py)
+
+        i = i + 1
+    }
+}
+
+fn start() {
+    global move_x = 5
+}
+
+fn tick() {
+    color(0, 0, 0)
+    rect(0, 0, WIDTH, HEIGHT)
+    draw_texture(img_placeholder, move_x, 5)
+    move_x = move_x + 1
+}

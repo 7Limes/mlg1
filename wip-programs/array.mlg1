@@ -1,0 +1,31 @@
+#memory 64
+
+fn array_init() {
+    global _next_array_address = 0
+}
+
+fn array_new(size) {
+    let array_address = _next_array_address
+    _next_array_address = _next_array_address + size
+    return array_address
+}
+
+fn array_set(array, index, value) {
+    set(array, array+index, value)
+}
+
+fn array_get(array, index) {
+    return get(array + index)
+}
+
+fn start() {
+    let arr = array_new(10)
+    
+    let i = 0
+    while i < 10 {
+        array_set(arr, i, i*2)
+        i = i + 1
+    }
+
+    let got = array_get(arr, 5)
+}
