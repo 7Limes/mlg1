@@ -1,42 +1,36 @@
-#width 100
-#height 100
-#tickrate 60
-#memory 0
-
-$IMG "wip-programs/assets/check.png"
+#width 500
+#height 500
+#memory 8192
 
 fn draw_texture(address, x, y) {
-    let img_width = get(address)
-    let img_height = get(address+1)
-    let img_area = img_width * img_height
+    let twidth = get(address)
+    let theight = get(address+1)
+    let area = twidth*theight
 
     address = address + 2
     let i = 0
-    while i < img_area {
+    while i < area {
         let pixel_data = get(address+i)
         let r = pixel_data % 256
         pixel_data = pixel_data / 256
         let g = pixel_data % 256
-        pixel_data = pixel_data / 256
+        pixel_data = pixel_data /256
         let b = pixel_data % 256
 
         color(r, g, b)
-        let px = i % img_width + x
-        let py = i / img_height + y
-        point(px, py)
+        point(i % twidth + x, i / theight + y)
 
         i = i + 1
     }
 }
 
-
 fn draw_texture_region(address, x, y, rx, ry, rwidth, rheight) {
-    let img_width = get(address)
+    let twidth = get(address)
 
-    let pixel_pointer = address + 2 + ry * img_width + rx
+    let pixel_pointer = address + 2 + ry * twidth + rx
 
     let region_area = rwidth * rheight
-    let width_minus_rwidth = img_width - rwidth
+    let width_minus_rwidth = twidth - rwidth
 
     let i = 0
     while i < region_area {
@@ -63,7 +57,6 @@ fn draw_texture_region(address, x, y, rx, ry, rwidth, rheight) {
     }
 }
 
-
 fn draw_text(string_address, string_length, font_address, font_size, x, y) {
     let char_counter = 0
     let cursor_x_position = x
@@ -80,8 +73,6 @@ fn draw_text(string_address, string_length, font_address, font_size, x, y) {
 
 
 fn start() {
-    draw_texture_region(IMG, 5, 5, 0, 0, 32, 64)
-}
-
-fn tick() {
+    draw_texture(200, 10, 10)
+    // draw_text(200, 22, 250, 8, 10, 10)
 }
