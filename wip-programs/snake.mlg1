@@ -1,0 +1,147 @@
+#width 20
+#height 20
+#tickrate 60
+#memory 400
+
+
+define SNAKE_MOVE_TIME 20
+define AMOUNT_CELLS 20
+
+define RAND_MODULUS 12
+define RAND_MULTIPLIER 9
+define RAND_INCREMENT 7
+
+
+fn start() {
+    global rand_value = 0
+	global game_over = 1
+
+    global snake_move_timer = 0
+    global snake_head_x = 2
+    global snake_head_y = 9
+    global snake_direction_x = 1
+    global snake_direction_y = 0
+    global snake_add_segments = 5
+
+    global apple_x = 14
+    global apple_y = 9
+
+    global snake_segments_start = HEAP
+    global snake_segments_length = 0
+}
+
+
+fn next_rand() {
+    rand_value = (rand_value * RAND_MULTIPLIER + RAND_INCREMENT) % RAND_MODULUS
+    return rand_value
+}
+
+
+fn input() {
+    if UP {
+        snake_direction_x = 0
+        snake_direction_y = -1
+    }
+    if DOWN {
+        snake_direction_x = 0
+        snake_direction_y = 1
+    }
+    if LEFT {
+        snake_direction_x = -1
+        snake_direction_y = 0
+    }
+    if RIGHT {
+        snake_direction_x = 1
+        snake_direction_y = 0
+    }
+}
+
+
+fn move_snake_tick() {
+    snake_move_timer = snake_move_timer + 1
+    if snake_move_timer == SNAKE_MOVE_TIME {
+        snake_move_timer = 0
+        move_snake()
+    }
+}
+
+
+fn check_eat_apple() {
+    if (snake_head_x == apple_x) * (snake_head_y == apple_y) {
+        apple_x = next_rand() % AMOUNT_CELLS
+        apple_y = next_rand() % AMOUNT_CELLS
+        snake_add_segments = snake_add_segments + 1
+    }
+}
+
+
+fn remove_last_segment() {
+    // Shift everything left by 2
+
+    let segment_address = snake_segments_start
+    let i = 0
+    let loop_end = snake_segments_length - 2
+    while i < loop_end {
+        segment_address = snake_segments_start+i
+        let shifted_value = get(segment_address+2)
+        set(segment_address, shifted_value)
+        i = i + 1
+    }
+    snake_segments_length = snake_segments_length - 2
+}
+
+
+fn move_snake() {
+    let snake_segments_end = snake_segments_start + snake_segments_length
+    set(snake_segments_end, snake_head_x)
+    set(snake_segments_end+1, snake_head_y)
+    snake_segments_length = snake_segments_length + 2
+
+    snake_head_x = snake_head_x + snake_direction_x
+    snake_head_y = snake_head_y + snake_direction_y
+
+    check_eat_apple()
+
+    if 0 < snake_add_segments {
+        snake_add_segments = snake_add_segments - 1
+    }
+    else {
+        remove_last_segment()
+    }
+}
+
+
+fn draw_snake() {
+    color(0, 255, 0)
+    point(snake_head_x, snake_head_y)
+
+    color(0, 200, 0)
+    let i = 0
+    while i < snake_segments_length {
+        let segment_x = get(snake_segments_start+i)
+        let segment_y = get(snake_segments_start+i+1)
+        point(segment_x, segment_y)
+        i = i + 2
+    }
+}
+
+
+fn tick() {
+	if game_over {
+		rand_value = rand_value + 1
+		if CONTROL1 {
+			game_over = 0
+		}
+	}
+	else {
+		input()
+		move_snake_tick()
+
+		color(0, 0, 0)
+		rect(0, 0, WIDTH, HEIGHT)
+		draw_snake()
+
+		color(255, 0, 0)
+		point(apple_x, apple_y)
+	}
+}
