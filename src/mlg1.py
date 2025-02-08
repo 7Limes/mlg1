@@ -3,7 +3,7 @@ An mlg1 compiler implementation made with ANTLR.
 
 By Miles Burkart
 https://github.com/7Limes
-11-27-2024
+2-7-2025
 """
 
 from antlr4 import *
@@ -126,19 +126,11 @@ BUILTIN_FUNCTIONS = {
     'rect': [
         'rect {a0} {a1} {a2} {a3}'
     ],
-    # 'get': [
-    #     'add {return_register} {a0} {heap_address}',
-    #     'movp {return_register} ${return_register}'
-    # ],
-    # 'set': [
-    #     'add {return_register} {a0} {heap_address}',
-    #     'mov ${return_register} {a1}'
-    # ]
     'get': [
         'movp {return_register} {a0}'
     ],
     'set': [
-        'mov ${a0} {a1}'
+        'mov {a0} {a1}'
     ]
 }
 
