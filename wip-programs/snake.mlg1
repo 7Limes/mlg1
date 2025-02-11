@@ -4,12 +4,12 @@
 #memory 400
 
 
-define SNAKE_MOVE_TIME 20
+define SNAKE_MOVE_TIME 10
 define AMOUNT_CELLS 20
 
-define RAND_MODULUS 12
-define RAND_MULTIPLIER 9
-define RAND_INCREMENT 7
+define RAND_MODULUS 2147483648
+define RAND_MULTIPLIER 1103515245
+define RAND_INCREMENT 1013904223
 
 
 fn start() {
@@ -70,14 +70,13 @@ fn check_eat_apple() {
     if (snake_head_x == apple_x) * (snake_head_y == apple_y) {
         apple_x = next_rand() % AMOUNT_CELLS
         apple_y = next_rand() % AMOUNT_CELLS
-        snake_add_segments = snake_add_segments + 1
+        snake_add_segments = snake_add_segments + 3
     }
 }
 
 
 fn remove_last_segment() {
     // Shift everything left by 2
-
     let segment_address = snake_segments_start
     let i = 0
     let loop_end = snake_segments_length - 2
@@ -97,8 +96,9 @@ fn move_snake() {
     set(snake_segments_end+1, snake_head_y)
     snake_segments_length = snake_segments_length + 2
 
-    snake_head_x = snake_head_x + snake_direction_x
-    snake_head_y = snake_head_y + snake_direction_y
+    // Move and wrap snake head
+    snake_head_x = (snake_head_x + snake_direction_x) % AMOUNT_CELLS
+    snake_head_y = (snake_head_y + snake_direction_y) % AMOUNT_CELLS
 
     check_eat_apple()
 
