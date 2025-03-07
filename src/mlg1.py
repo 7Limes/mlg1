@@ -131,6 +131,9 @@ BUILTIN_FUNCTIONS = {
     ],
     'set': [
         'mov {a0} {a1}'
+    ],
+    'print': [
+        'log {a0}'
     ]
 }
 
