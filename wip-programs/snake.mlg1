@@ -28,6 +28,8 @@ fn start() {
 
     global snake_segments_start = HEAP
     global snake_segments_length = 0
+
+    global score = 0
 }
 
 
@@ -71,6 +73,7 @@ fn check_eat_apple() {
         apple_x = next_rand() % AMOUNT_CELLS
         apple_y = next_rand() % AMOUNT_CELLS
         snake_add_segments = snake_add_segments + 3
+        score = score + 1
     }
 }
 
@@ -90,6 +93,20 @@ fn remove_last_segment() {
 }
 
 
+fn check_collisions() {
+    let i = 0
+    while i < snake_segments_length {
+        let segment_x = get(snake_segments_start+i)
+        let segment_y = get(snake_segments_start+i+1)
+        if (segment_x == snake_head_x) * (segment_y == snake_head_y) {
+            start()
+            i = 99999  // break out
+        }
+        i = i + 2
+    }
+}
+
+
 fn move_snake() {
     let snake_segments_end = snake_segments_start + snake_segments_length
     set(snake_segments_end, snake_head_x)
@@ -100,6 +117,7 @@ fn move_snake() {
     snake_head_x = (snake_head_x + snake_direction_x) % AMOUNT_CELLS
     snake_head_y = (snake_head_y + snake_direction_y) % AMOUNT_CELLS
 
+    check_collisions()
     check_eat_apple()
 
     if 0 < snake_add_segments {
