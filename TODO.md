@@ -2,6 +2,7 @@
 
 ## Features
 - break statement
+- inline functions?
 - arrays
 - importing files
 - better function call register use
