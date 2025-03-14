@@ -1,6 +1,10 @@
 # TODO
 
 ## Features
+- check for too many or too few arguments in function call
+- strings
+  - store in .g1d file
+  - length prefixed
 - break statement
 - inline functions?
 - arrays
