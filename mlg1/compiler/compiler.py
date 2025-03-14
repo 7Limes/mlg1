@@ -3,7 +3,6 @@ An mlg1 compiler implementation made with ANTLR.
 
 By Miles Burkart
 https://github.com/7Limes
-2-7-2025
 """
 
 from antlr4 import *
