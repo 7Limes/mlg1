@@ -5,13 +5,13 @@ By Miles Burkart
 https://github.com/7Limes
 """
 
-from antlr4 import *
+import sys
+import os
+from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from mlg1.parser.mlg1Lexer import mlg1Lexer
 from mlg1.parser.mlg1Listener import mlg1Listener
 from mlg1.parser.mlg1Parser import mlg1Parser
-import sys
-import os
 from mlg1.compiler.constants import *
 from mlg1.compiler.util import error, preprocess_error, COLOR_ERROR
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler
@@ -46,8 +46,9 @@ class InitialListener(BaseListener):
         self.function_namespaces: dict[str, dict[str, dict[str, int]]] = {}
         self.global_namespace: dict[str, int] = GLOBAL_NAMESPACE.copy()
         self.constant_namespace: dict[str, int] = {}
+        self.string_vars: dict[int, int] = {}
         self.current_function: str = None
-        self.files_to_load: dict[str, str] = {}
+        self.data_entries: dict[str, dict[str, str]] = {}
         self.compiler_flags = CompilerFlags()
     
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
@@ -96,8 +97,17 @@ class InitialListener(BaseListener):
             self.error(ctx, f'Variable "{name}" declared twice.')
         if self.current_function is None:
             self.error(ctx, 'Current function is None.')
+
+        is_local = keyword == 'let'
+
+        if ctx.STRING() is not None:
+            self.data_entries[name] = {
+                'type': 's',
+                'string': ctx.STRING().getText()[1:-1],
+                'var_address': self.current_address
+            }
         
-        if keyword == 'let':  # local var
+        if is_local:  # local var
             self.function_namespaces[self.current_function]['locals'][name] = self.current_address
         else:  # global var
             self.global_namespace[name] = self.current_address
@@ -111,7 +121,7 @@ class InitialListener(BaseListener):
     def enterLoadFile(self, ctx):
         name = ctx.NAME().getText()
         path = ctx.STRING().getText()
-        self.files_to_load[name] = path[1:-1]
+        self.data_entries[name] = {'type': 'f', 'path': path[1:-1]}
     
 
     def after_walk(self) -> list[str]:
@@ -120,17 +130,27 @@ class InitialListener(BaseListener):
         Adds addresses of loaded files to the global namespace and sets the HEAP address variable
         """
         data_file_rules = []
-        for var_name, file_path in self.files_to_load.items():
-            data_file_rules.append(f'{self.current_address} f {file_path}')
-            self.constant_namespace[var_name] = self.current_address
-            with open(file_path, 'rb') as f:
-                file_bytes = f.read()
-            file_extension = os.path.splitext(file_path)[1]
-            self.current_address += get_parsed_file_size(file_bytes, file_extension)
+        for var_name, data_entry in self.data_entries.items():
+            entry_type = data_entry['type']
+            if entry_type == 'f':  # file
+                file_path = data_entry['path']
+                data_file_rules.append(f'{self.current_address} f {file_path}')
+                self.constant_namespace[var_name] = self.current_address
+                with open(file_path, 'rb') as f:
+                    file_bytes = f.read()
+                file_extension = os.path.splitext(file_path)[1]
+                self.current_address += get_parsed_file_size(file_bytes, file_extension)
+
+            elif entry_type == 's':  # string
+                string = data_entry['string']
+                data_file_rules.append(f'{self.current_address} s {string}')
+                self.string_vars[data_entry['var_address']] = self.current_address
+                self.current_address += len(string) + 1  # add 1 for length prefix
         
         self.constant_namespace[HEAP_VARIABLE_NAME] = self.current_address
 
         return data_file_rules
+
 
 class MainListener(BaseListener):
     def __init__(self, compiler_state: CompilerState) -> None:
@@ -177,12 +197,17 @@ class MainListener(BaseListener):
             self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}jmp return 1')
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
-        expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
-        expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
-        self.compiler_state.code_writer.add_lines(expression_code)
+        if ctx.STRING():
+            var_address = self._get_var_address(var_name, is_global)
+            string_address = self.compiler_state.string_vars[var_address]
+            self.compiler_state.code_writer.add_line(f'mov {var_address} {string_address}')
+        else:
+            expression_token = ctx.expression()
+            expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+            expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
+            self.compiler_state.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
         expression_token = ctx.expression()
@@ -254,7 +279,7 @@ def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[st
     data_file_rules = listener.after_walk()
     compiler_state = CompilerState(
         source_lines, listener.meta_variables,
-        listener.function_namespaces, listener.global_namespace, listener.constant_namespace,
+        listener.function_namespaces, listener.global_namespace, listener.constant_namespace, listener.string_vars,
         listener.compiler_flags, listener.current_address, CodeWriter(), []
     )
     compiler_state.meta_variables['memory'] += compiler_state.heap_address  # offset requested memory by the stack memory size [note 2]

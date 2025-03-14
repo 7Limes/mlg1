@@ -40,6 +40,7 @@ class CompilerState:
     function_namespaces: dict[str, dict[str, list[str]|dict[str, int]]]
     global_namespace: dict[str, int]
     constant_namespace: dict[str, int]
+    string_vars: dict[int, int]
     compiler_flags: CompilerFlags
     heap_address: int
     code_writer: CodeWriter
