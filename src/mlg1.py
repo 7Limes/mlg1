@@ -608,7 +608,7 @@ class InitialListener(BaseListener):
     
     def enterLoadFile(self, ctx):
         name = ctx.NAME().getText()
-        path = ctx.FILE_PATH().getText()
+        path = ctx.STRING().getText()
         self.files_to_load[name] = path[1:-1]
     
 

@@ -1,4 +1,4 @@
-# Generated from mlg1.g4 by ANTLR 4.13.2
+# Generated from ./src/parser/mlg1.g4 by ANTLR 4.13.2
 # encoding: utf-8
 from antlr4 import *
 from io import StringIO
@@ -10,7 +10,7 @@ else:
 
 def serializedATN():
     return [
-        4,1,29,184,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        4,1,29,186,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
         6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,
         2,14,7,14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,
         7,20,1,0,5,0,44,8,0,10,0,12,0,47,9,0,1,0,5,0,50,8,0,10,0,12,0,53,
@@ -18,59 +18,60 @@ def serializedATN():
         1,1,1,1,1,1,1,1,1,2,1,2,1,2,1,2,1,3,1,3,1,3,1,3,1,4,1,4,1,4,1,4,
         3,4,82,8,4,1,4,1,4,1,4,1,5,1,5,1,5,5,5,90,8,5,10,5,12,5,93,9,5,1,
         6,1,6,5,6,97,8,6,10,6,12,6,100,9,6,1,6,1,6,1,7,1,7,1,7,1,7,1,7,1,
-        7,3,7,110,8,7,1,8,1,8,1,8,1,8,1,8,1,9,1,9,1,9,1,9,1,10,1,10,1,10,
-        1,10,1,10,3,10,126,8,10,1,11,1,11,3,11,130,8,11,1,12,1,12,1,12,1,
-        12,1,13,1,13,1,13,1,14,1,14,1,14,3,14,142,8,14,1,14,1,14,1,15,1,
-        15,1,15,5,15,149,8,15,10,15,12,15,152,9,15,1,16,1,16,1,16,1,16,1,
-        16,1,16,1,16,3,16,161,8,16,1,16,1,16,1,16,1,16,5,16,167,8,16,10,
-        16,12,16,170,9,16,1,17,1,17,1,17,1,18,1,18,1,18,3,18,178,8,18,1,
-        19,1,19,1,20,1,20,1,20,0,1,32,21,0,2,4,6,8,10,12,14,16,18,20,22,
-        24,26,28,30,32,34,36,38,40,0,2,1,0,15,16,2,0,15,15,17,22,183,0,45,
-        1,0,0,0,2,65,1,0,0,0,4,69,1,0,0,0,6,73,1,0,0,0,8,77,1,0,0,0,10,86,
-        1,0,0,0,12,94,1,0,0,0,14,109,1,0,0,0,16,111,1,0,0,0,18,116,1,0,0,
-        0,20,120,1,0,0,0,22,129,1,0,0,0,24,131,1,0,0,0,26,135,1,0,0,0,28,
-        138,1,0,0,0,30,145,1,0,0,0,32,160,1,0,0,0,34,171,1,0,0,0,36,177,
-        1,0,0,0,38,179,1,0,0,0,40,181,1,0,0,0,42,44,3,2,1,0,43,42,1,0,0,
-        0,44,47,1,0,0,0,45,43,1,0,0,0,45,46,1,0,0,0,46,51,1,0,0,0,47,45,
-        1,0,0,0,48,50,3,4,2,0,49,48,1,0,0,0,50,53,1,0,0,0,51,49,1,0,0,0,
-        51,52,1,0,0,0,52,57,1,0,0,0,53,51,1,0,0,0,54,56,3,6,3,0,55,54,1,
-        0,0,0,56,59,1,0,0,0,57,55,1,0,0,0,57,58,1,0,0,0,58,61,1,0,0,0,59,
-        57,1,0,0,0,60,62,3,8,4,0,61,60,1,0,0,0,62,63,1,0,0,0,63,61,1,0,0,
-        0,63,64,1,0,0,0,64,1,1,0,0,0,65,66,5,1,0,0,66,67,5,23,0,0,67,68,
-        5,27,0,0,68,3,1,0,0,0,69,70,5,2,0,0,70,71,5,26,0,0,71,72,5,24,0,
-        0,72,5,1,0,0,0,73,74,5,3,0,0,74,75,5,26,0,0,75,76,5,27,0,0,76,7,
-        1,0,0,0,77,78,5,4,0,0,78,79,5,26,0,0,79,81,5,5,0,0,80,82,3,10,5,
-        0,81,80,1,0,0,0,81,82,1,0,0,0,82,83,1,0,0,0,83,84,5,6,0,0,84,85,
-        3,12,6,0,85,9,1,0,0,0,86,91,5,26,0,0,87,88,5,7,0,0,88,90,5,26,0,
-        0,89,87,1,0,0,0,90,93,1,0,0,0,91,89,1,0,0,0,91,92,1,0,0,0,92,11,
-        1,0,0,0,93,91,1,0,0,0,94,98,5,8,0,0,95,97,3,14,7,0,96,95,1,0,0,0,
-        97,100,1,0,0,0,98,96,1,0,0,0,98,99,1,0,0,0,99,101,1,0,0,0,100,98,
-        1,0,0,0,101,102,5,9,0,0,102,13,1,0,0,0,103,110,3,16,8,0,104,110,
+        7,3,7,110,8,7,1,8,1,8,1,8,1,8,1,8,3,8,117,8,8,1,9,1,9,1,9,1,9,1,
+        10,1,10,1,10,1,10,1,10,3,10,128,8,10,1,11,1,11,3,11,132,8,11,1,12,
+        1,12,1,12,1,12,1,13,1,13,1,13,1,14,1,14,1,14,3,14,144,8,14,1,14,
+        1,14,1,15,1,15,1,15,5,15,151,8,15,10,15,12,15,154,9,15,1,16,1,16,
+        1,16,1,16,1,16,1,16,1,16,3,16,163,8,16,1,16,1,16,1,16,1,16,5,16,
+        169,8,16,10,16,12,16,172,9,16,1,17,1,17,1,17,1,18,1,18,1,18,3,18,
+        180,8,18,1,19,1,19,1,20,1,20,1,20,0,1,32,21,0,2,4,6,8,10,12,14,16,
+        18,20,22,24,26,28,30,32,34,36,38,40,0,2,1,0,15,16,2,0,15,15,17,22,
+        186,0,45,1,0,0,0,2,65,1,0,0,0,4,69,1,0,0,0,6,73,1,0,0,0,8,77,1,0,
+        0,0,10,86,1,0,0,0,12,94,1,0,0,0,14,109,1,0,0,0,16,111,1,0,0,0,18,
+        118,1,0,0,0,20,122,1,0,0,0,22,131,1,0,0,0,24,133,1,0,0,0,26,137,
+        1,0,0,0,28,140,1,0,0,0,30,147,1,0,0,0,32,162,1,0,0,0,34,173,1,0,
+        0,0,36,179,1,0,0,0,38,181,1,0,0,0,40,183,1,0,0,0,42,44,3,2,1,0,43,
+        42,1,0,0,0,44,47,1,0,0,0,45,43,1,0,0,0,45,46,1,0,0,0,46,51,1,0,0,
+        0,47,45,1,0,0,0,48,50,3,4,2,0,49,48,1,0,0,0,50,53,1,0,0,0,51,49,
+        1,0,0,0,51,52,1,0,0,0,52,57,1,0,0,0,53,51,1,0,0,0,54,56,3,6,3,0,
+        55,54,1,0,0,0,56,59,1,0,0,0,57,55,1,0,0,0,57,58,1,0,0,0,58,61,1,
+        0,0,0,59,57,1,0,0,0,60,62,3,8,4,0,61,60,1,0,0,0,62,63,1,0,0,0,63,
+        61,1,0,0,0,63,64,1,0,0,0,64,1,1,0,0,0,65,66,5,1,0,0,66,67,5,23,0,
+        0,67,68,5,26,0,0,68,3,1,0,0,0,69,70,5,2,0,0,70,71,5,25,0,0,71,72,
+        5,27,0,0,72,5,1,0,0,0,73,74,5,3,0,0,74,75,5,25,0,0,75,76,5,26,0,
+        0,76,7,1,0,0,0,77,78,5,4,0,0,78,79,5,25,0,0,79,81,5,5,0,0,80,82,
+        3,10,5,0,81,80,1,0,0,0,81,82,1,0,0,0,82,83,1,0,0,0,83,84,5,6,0,0,
+        84,85,3,12,6,0,85,9,1,0,0,0,86,91,5,25,0,0,87,88,5,7,0,0,88,90,5,
+        25,0,0,89,87,1,0,0,0,90,93,1,0,0,0,91,89,1,0,0,0,91,92,1,0,0,0,92,
+        11,1,0,0,0,93,91,1,0,0,0,94,98,5,8,0,0,95,97,3,14,7,0,96,95,1,0,
+        0,0,97,100,1,0,0,0,98,96,1,0,0,0,98,99,1,0,0,0,99,101,1,0,0,0,100,
+        98,1,0,0,0,101,102,5,9,0,0,102,13,1,0,0,0,103,110,3,16,8,0,104,110,
         3,18,9,0,105,110,3,28,14,0,106,110,3,26,13,0,107,110,3,20,10,0,108,
         110,3,24,12,0,109,103,1,0,0,0,109,104,1,0,0,0,109,105,1,0,0,0,109,
         106,1,0,0,0,109,107,1,0,0,0,109,108,1,0,0,0,110,15,1,0,0,0,111,112,
-        5,25,0,0,112,113,5,26,0,0,113,114,5,10,0,0,114,115,3,32,16,0,115,
-        17,1,0,0,0,116,117,5,26,0,0,117,118,5,10,0,0,118,119,3,32,16,0,119,
-        19,1,0,0,0,120,121,5,11,0,0,121,122,3,32,16,0,122,125,3,12,6,0,123,
-        124,5,12,0,0,124,126,3,22,11,0,125,123,1,0,0,0,125,126,1,0,0,0,126,
-        21,1,0,0,0,127,130,3,12,6,0,128,130,3,20,10,0,129,127,1,0,0,0,129,
-        128,1,0,0,0,130,23,1,0,0,0,131,132,5,13,0,0,132,133,3,32,16,0,133,
-        134,3,12,6,0,134,25,1,0,0,0,135,136,5,14,0,0,136,137,3,32,16,0,137,
-        27,1,0,0,0,138,139,5,26,0,0,139,141,5,5,0,0,140,142,3,30,15,0,141,
-        140,1,0,0,0,141,142,1,0,0,0,142,143,1,0,0,0,143,144,5,6,0,0,144,
-        29,1,0,0,0,145,150,3,32,16,0,146,147,5,7,0,0,147,149,3,32,16,0,148,
-        146,1,0,0,0,149,152,1,0,0,0,150,148,1,0,0,0,150,151,1,0,0,0,151,
-        31,1,0,0,0,152,150,1,0,0,0,153,154,6,16,-1,0,154,161,3,36,18,0,155,
-        161,3,34,17,0,156,157,5,5,0,0,157,158,3,32,16,0,158,159,5,6,0,0,
-        159,161,1,0,0,0,160,153,1,0,0,0,160,155,1,0,0,0,160,156,1,0,0,0,
-        161,168,1,0,0,0,162,163,10,2,0,0,163,164,3,40,20,0,164,165,3,32,
-        16,3,165,167,1,0,0,0,166,162,1,0,0,0,167,170,1,0,0,0,168,166,1,0,
-        0,0,168,169,1,0,0,0,169,33,1,0,0,0,170,168,1,0,0,0,171,172,3,38,
-        19,0,172,173,3,32,16,0,173,35,1,0,0,0,174,178,5,26,0,0,175,178,5,
-        27,0,0,176,178,3,28,14,0,177,174,1,0,0,0,177,175,1,0,0,0,177,176,
-        1,0,0,0,178,37,1,0,0,0,179,180,7,0,0,0,180,39,1,0,0,0,181,182,7,
-        1,0,0,182,41,1,0,0,0,15,45,51,57,63,81,91,98,109,125,129,141,150,
-        160,168,177
+        5,24,0,0,112,113,5,25,0,0,113,116,5,10,0,0,114,117,3,32,16,0,115,
+        117,5,27,0,0,116,114,1,0,0,0,116,115,1,0,0,0,117,17,1,0,0,0,118,
+        119,5,25,0,0,119,120,5,10,0,0,120,121,3,32,16,0,121,19,1,0,0,0,122,
+        123,5,11,0,0,123,124,3,32,16,0,124,127,3,12,6,0,125,126,5,12,0,0,
+        126,128,3,22,11,0,127,125,1,0,0,0,127,128,1,0,0,0,128,21,1,0,0,0,
+        129,132,3,12,6,0,130,132,3,20,10,0,131,129,1,0,0,0,131,130,1,0,0,
+        0,132,23,1,0,0,0,133,134,5,13,0,0,134,135,3,32,16,0,135,136,3,12,
+        6,0,136,25,1,0,0,0,137,138,5,14,0,0,138,139,3,32,16,0,139,27,1,0,
+        0,0,140,141,5,25,0,0,141,143,5,5,0,0,142,144,3,30,15,0,143,142,1,
+        0,0,0,143,144,1,0,0,0,144,145,1,0,0,0,145,146,5,6,0,0,146,29,1,0,
+        0,0,147,152,3,32,16,0,148,149,5,7,0,0,149,151,3,32,16,0,150,148,
+        1,0,0,0,151,154,1,0,0,0,152,150,1,0,0,0,152,153,1,0,0,0,153,31,1,
+        0,0,0,154,152,1,0,0,0,155,156,6,16,-1,0,156,163,3,36,18,0,157,163,
+        3,34,17,0,158,159,5,5,0,0,159,160,3,32,16,0,160,161,5,6,0,0,161,
+        163,1,0,0,0,162,155,1,0,0,0,162,157,1,0,0,0,162,158,1,0,0,0,163,
+        170,1,0,0,0,164,165,10,2,0,0,165,166,3,40,20,0,166,167,3,32,16,3,
+        167,169,1,0,0,0,168,164,1,0,0,0,169,172,1,0,0,0,170,168,1,0,0,0,
+        170,171,1,0,0,0,171,33,1,0,0,0,172,170,1,0,0,0,173,174,3,38,19,0,
+        174,175,3,32,16,0,175,35,1,0,0,0,176,180,5,25,0,0,177,180,5,26,0,
+        0,178,180,3,28,14,0,179,176,1,0,0,0,179,177,1,0,0,0,179,178,1,0,
+        0,0,180,37,1,0,0,0,181,182,7,0,0,0,182,39,1,0,0,0,183,184,7,1,0,
+        0,184,41,1,0,0,0,16,45,51,57,63,81,91,98,109,116,127,131,143,152,
+        162,170,179
     ]
 
 class mlg1Parser ( Parser ):
@@ -94,8 +95,8 @@ class mlg1Parser ( Parser ):
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                       "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                       "<INVALID>", "<INVALID>", "<INVALID>", "META_VARIABLE_NAME", 
-                      "FILE_PATH", "VARIABLE_KEYWORD", "NAME", "INTEGER", 
-                      "LINE_COMMENT", "WS" ]
+                      "VARIABLE_KEYWORD", "NAME", "INTEGER", "STRING", "LINE_COMMENT", 
+                      "WS" ]
 
     RULE_program = 0
     RULE_metaVariable = 1
@@ -149,10 +150,10 @@ class mlg1Parser ( Parser ):
     T__20=21
     T__21=22
     META_VARIABLE_NAME=23
-    FILE_PATH=24
-    VARIABLE_KEYWORD=25
-    NAME=26
-    INTEGER=27
+    VARIABLE_KEYWORD=24
+    NAME=25
+    INTEGER=26
+    STRING=27
     LINE_COMMENT=28
     WS=29
 
@@ -330,8 +331,8 @@ class mlg1Parser ( Parser ):
         def NAME(self):
             return self.getToken(mlg1Parser.NAME, 0)
 
-        def FILE_PATH(self):
-            return self.getToken(mlg1Parser.FILE_PATH, 0)
+        def STRING(self):
+            return self.getToken(mlg1Parser.STRING, 0)
 
         def getRuleIndex(self):
             return mlg1Parser.RULE_loadFile
@@ -358,7 +359,7 @@ class mlg1Parser ( Parser ):
             self.state = 70
             self.match(mlg1Parser.NAME)
             self.state = 71
-            self.match(mlg1Parser.FILE_PATH)
+            self.match(mlg1Parser.STRING)
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -464,7 +465,7 @@ class mlg1Parser ( Parser ):
             self.state = 81
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if _la==26:
+            if _la==25:
                 self.state = 80
                 self.parameterList()
 
@@ -579,7 +580,7 @@ class mlg1Parser ( Parser ):
             self.state = 98
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 100689920) != 0):
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 50358272) != 0):
                 self.state = 95
                 self.statement()
                 self.state = 100
@@ -713,6 +714,9 @@ class mlg1Parser ( Parser ):
             return self.getTypedRuleContext(mlg1Parser.ExpressionContext,0)
 
 
+        def STRING(self):
+            return self.getToken(mlg1Parser.STRING, 0)
+
         def getRuleIndex(self):
             return mlg1Parser.RULE_variableDeclaration
 
@@ -739,8 +743,20 @@ class mlg1Parser ( Parser ):
             self.match(mlg1Parser.NAME)
             self.state = 113
             self.match(mlg1Parser.T__9)
-            self.state = 114
-            self.expression(0)
+            self.state = 116
+            self._errHandler.sync(self)
+            token = self._input.LA(1)
+            if token in [5, 15, 16, 25, 26]:
+                self.state = 114
+                self.expression(0)
+                pass
+            elif token in [27]:
+                self.state = 115
+                self.match(mlg1Parser.STRING)
+                pass
+            else:
+                raise NoViableAltException(self)
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -784,11 +800,11 @@ class mlg1Parser ( Parser ):
         self.enterRule(localctx, 18, self.RULE_assignment)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 116
-            self.match(mlg1Parser.NAME)
-            self.state = 117
-            self.match(mlg1Parser.T__9)
             self.state = 118
+            self.match(mlg1Parser.NAME)
+            self.state = 119
+            self.match(mlg1Parser.T__9)
+            self.state = 120
             self.expression(0)
         except RecognitionException as re:
             localctx.exception = re
@@ -839,19 +855,19 @@ class mlg1Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 120
-            self.match(mlg1Parser.T__10)
-            self.state = 121
-            self.expression(0)
             self.state = 122
+            self.match(mlg1Parser.T__10)
+            self.state = 123
+            self.expression(0)
+            self.state = 124
             self.block()
-            self.state = 125
+            self.state = 127
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==12:
-                self.state = 123
+                self.state = 125
                 self.match(mlg1Parser.T__11)
-                self.state = 124
+                self.state = 126
                 self.elseStatement()
 
 
@@ -898,17 +914,17 @@ class mlg1Parser ( Parser ):
         localctx = mlg1Parser.ElseStatementContext(self, self._ctx, self.state)
         self.enterRule(localctx, 22, self.RULE_elseStatement)
         try:
-            self.state = 129
+            self.state = 131
             self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [8]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 127
+                self.state = 129
                 self.block()
                 pass
             elif token in [11]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 128
+                self.state = 130
                 self.ifStatement()
                 pass
             else:
@@ -958,11 +974,11 @@ class mlg1Parser ( Parser ):
         self.enterRule(localctx, 24, self.RULE_whileLoop)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 131
-            self.match(mlg1Parser.T__12)
-            self.state = 132
-            self.expression(0)
             self.state = 133
+            self.match(mlg1Parser.T__12)
+            self.state = 134
+            self.expression(0)
+            self.state = 135
             self.block()
         except RecognitionException as re:
             localctx.exception = re
@@ -1004,9 +1020,9 @@ class mlg1Parser ( Parser ):
         self.enterRule(localctx, 26, self.RULE_returnStatement)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 135
+            self.state = 137
             self.match(mlg1Parser.T__13)
-            self.state = 136
+            self.state = 138
             self.expression(0)
         except RecognitionException as re:
             localctx.exception = re
@@ -1052,19 +1068,19 @@ class mlg1Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 138
+            self.state = 140
             self.match(mlg1Parser.NAME)
-            self.state = 139
-            self.match(mlg1Parser.T__4)
             self.state = 141
+            self.match(mlg1Parser.T__4)
+            self.state = 143
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 201424928) != 0):
-                self.state = 140
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 100761632) != 0):
+                self.state = 142
                 self.argumentList()
 
 
-            self.state = 143
+            self.state = 145
             self.match(mlg1Parser.T__5)
         except RecognitionException as re:
             localctx.exception = re
@@ -1110,17 +1126,17 @@ class mlg1Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 145
+            self.state = 147
             self.expression(0)
-            self.state = 150
+            self.state = 152
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while _la==7:
-                self.state = 146
+                self.state = 148
                 self.match(mlg1Parser.T__6)
-                self.state = 147
+                self.state = 149
                 self.expression(0)
-                self.state = 152
+                self.state = 154
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
 
@@ -1181,32 +1197,32 @@ class mlg1Parser ( Parser ):
         self.enterRecursionRule(localctx, 32, self.RULE_expression, _p)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 160
+            self.state = 162
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [26, 27]:
-                self.state = 154
+            if token in [25, 26]:
+                self.state = 156
                 self.primary()
                 pass
             elif token in [15, 16]:
-                self.state = 155
+                self.state = 157
                 self.unaryExpression()
                 pass
             elif token in [5]:
-                self.state = 156
-                self.match(mlg1Parser.T__4)
-                self.state = 157
-                self.expression(0)
                 self.state = 158
+                self.match(mlg1Parser.T__4)
+                self.state = 159
+                self.expression(0)
+                self.state = 160
                 self.match(mlg1Parser.T__5)
                 pass
             else:
                 raise NoViableAltException(self)
 
             self._ctx.stop = self._input.LT(-1)
-            self.state = 168
+            self.state = 170
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,13,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,14,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
                     if self._parseListeners is not None:
@@ -1214,17 +1230,17 @@ class mlg1Parser ( Parser ):
                     _prevctx = localctx
                     localctx = mlg1Parser.ExpressionContext(self, _parentctx, _parentState)
                     self.pushNewRecursionContext(localctx, _startState, self.RULE_expression)
-                    self.state = 162
+                    self.state = 164
                     if not self.precpred(self._ctx, 2):
                         from antlr4.error.Errors import FailedPredicateException
                         raise FailedPredicateException(self, "self.precpred(self._ctx, 2)")
-                    self.state = 163
+                    self.state = 165
                     self.operator()
-                    self.state = 164
+                    self.state = 166
                     self.expression(3) 
-                self.state = 170
+                self.state = 172
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,13,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,14,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -1270,9 +1286,9 @@ class mlg1Parser ( Parser ):
         self.enterRule(localctx, 34, self.RULE_unaryExpression)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 171
+            self.state = 173
             self.unaryOperator()
-            self.state = 172
+            self.state = 174
             self.expression(0)
         except RecognitionException as re:
             localctx.exception = re
@@ -1319,24 +1335,24 @@ class mlg1Parser ( Parser ):
         localctx = mlg1Parser.PrimaryContext(self, self._ctx, self.state)
         self.enterRule(localctx, 36, self.RULE_primary)
         try:
-            self.state = 177
+            self.state = 179
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,14,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,15,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 174
+                self.state = 176
                 self.match(mlg1Parser.NAME)
                 pass
 
             elif la_ == 2:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 175
+                self.state = 177
                 self.match(mlg1Parser.INTEGER)
                 pass
 
             elif la_ == 3:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 176
+                self.state = 178
                 self.functionCall()
                 pass
 
@@ -1379,7 +1395,7 @@ class mlg1Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 179
+            self.state = 181
             _la = self._input.LA(1)
             if not(_la==15 or _la==16):
                 self._errHandler.recoverInline(self)
@@ -1424,7 +1440,7 @@ class mlg1Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 181
+            self.state = 183
             _la = self._input.LA(1)
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 8290304) != 0)):
                 self._errHandler.recoverInline(self)

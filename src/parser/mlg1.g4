@@ -5,8 +5,7 @@ program: metaVariable* loadFile* constantDefinition* function+;
 META_VARIABLE_NAME: 'width'|'height'|'memory'|'tickrate';
 metaVariable: '#' META_VARIABLE_NAME INTEGER;
 
-FILE_PATH: '"' (~[ \t\r\n] | '\\' [a-zA-Z0-9_.])+ '"';
-loadFile: '$' NAME FILE_PATH;
+loadFile: '$' NAME STRING;
 
 constantDefinition: 'define' NAME INTEGER;
 
@@ -25,7 +24,7 @@ statement
     | whileLoop
     ;
 
-variableDeclaration: VARIABLE_KEYWORD NAME '=' expression;
+variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
 assignment: NAME '=' expression;
 
 ifStatement: 'if' expression block ('else' elseStatement)?;
@@ -75,5 +74,6 @@ operator
 VARIABLE_KEYWORD: ('let' | 'global');
 NAME: [a-zA-Z_][a-zA-Z0-9_]*;
 INTEGER: [0-9]+;
+STRING: '"' (~[ \t\r\n] | '\\' [a-zA-Z0-9_.])+ '"';
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 WS: [ \t\r\n]+ -> skip;
