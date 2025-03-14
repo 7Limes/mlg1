@@ -43,46 +43,6 @@ HEAP_VARIABLE_NAME = 'HEAP'
 RESERVED_NAMES = {'let', 'fn', 'return'}
 RESERVED_NAMES.update(GLOBAL_NAMESPACE.keys())
 
-OPERATORS = {
-    '+': {
-        'function': lambda a, b: a+b,
-        'instruction': 'add {dest} {a} {b}'
-    },
-    '-': {
-        'function': lambda a, b: a-b,
-        'instruction': 'sub {dest} {a} {b}'
-    },
-    '*': {
-        'function': lambda a, b: a*b,
-        'instruction': 'mul {dest} {a} {b}'
-    },
-    '/': {
-        'function': lambda a, b: a//b,
-        'instruction': 'div {dest} {a} {b}'
-    },
-    '%': {
-        'function': lambda a, b: a%b,
-        'instruction': 'mod {dest} {a} {b}'
-    },
-    '==': {
-        'function': lambda a, b: int(a==b),
-        'instruction': 'equal {dest} {a} {b}'
-    },
-    '<': {
-        'function': lambda a, b: int(a<b),
-        'instruction': 'less {dest} {a} {b}'
-    },
-    '!': {
-        'function': lambda a: int(not a),
-        'instruction': 'not {dest} {a}',
-        'unary': True
-    },
-    r'\-': {  # Unary subtraction
-        'function': lambda a: -a,
-        'instruction': 'mul {dest} {a} -1',
-        'unary': True
-    }
-}
 
 BUILTIN_FUNCTIONS = {
     'color': [

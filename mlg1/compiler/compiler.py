@@ -15,7 +15,7 @@ import os
 from mlg1.compiler.constants import *
 from mlg1.compiler.util import error, preprocess_error, COLOR_ERROR
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler
-from mlg1.compiler.data import CompilerData, CompilerFlags, CodeWriter
+from mlg1.compiler.data import CompilerState, CompilerFlags, CodeWriter
 from mlg1.compiler.file import get_parsed_file_size
 
 
@@ -133,132 +133,132 @@ class InitialListener(BaseListener):
         return data_file_rules
 
 class MainListener(BaseListener):
-    def __init__(self, compiler_data: CompilerData) -> None:
-        super().__init__(compiler_data.source_lines)
-        self.compiler_data = compiler_data
+    def __init__(self, compiler_state: CompilerState) -> None:
+        super().__init__(compiler_state.source_lines)
+        self.compiler_state = compiler_state
 
         self.current_function = None
 
         self.block_end_stack: list[str] = []
 
         # Add meta variable lines
-        for meta_var_name, meta_var_value in self.compiler_data.meta_variables.items():
-            self.compiler_data.code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
+        for meta_var_name, meta_var_value in self.compiler_state.meta_variables.items():
+            self.compiler_state.code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
         
-        if self.compiler_data.compiler_flags.contains_return:
-            self.compiler_data.code_writer.add_lines(RETURN_CODE)
+        if self.compiler_state.compiler_flags.contains_return:
+            self.compiler_state.code_writer.add_lines(RETURN_CODE)
     
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
         if is_global:
-            return self.compiler_data.global_namespace[var_name]
-        return self.compiler_data.function_namespaces[self.current_function]['locals'][var_name]
+            return self.compiler_state.global_namespace[var_name]
+        return self.compiler_state.function_namespaces[self.current_function]['locals'][var_name]
 
 
     def _add_conditional_inversion(self):
         inversion_instruction = f'not {ARITHMETIC_REGISTER_ADDRESS} ${ARITHMETIC_REGISTER_ADDRESS}'
-        if self.compiler_data.code_writer.last_line == inversion_instruction:  # [note 3]
-            self.compiler_data.code_writer.lines.pop()
+        if self.compiler_state.code_writer.last_line == inversion_instruction:  # [note 3]
+            self.compiler_state.code_writer.lines.pop()
         else:
-            self.compiler_data.code_writer.add_line(inversion_instruction)
+            self.compiler_state.code_writer.add_line(inversion_instruction)
 
 
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
         function_name = ctx.NAME().getText()
-        self.compiler_data.code_writer.add_lines(['', f'{function_name}:'])
-        if function_name == 'start' and self.compiler_data.compiler_flags.contains_return:
-            self.compiler_data.code_writer.add_line(f'{" "*INDENT_SIZE}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
+        self.compiler_state.code_writer.add_lines(['', f'{function_name}:'])
+        if function_name == 'start' and self.compiler_state.compiler_flags.contains_return:
+            self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
         self.current_function = function_name
     
     def exitFunction(self, ctx: mlg1Parser.FunctionContext):
         self.current_function = None
         if ctx.NAME().getText() in {'start', 'tick'}:
-            self.compiler_data.code_writer.add_line('jmp end 1')
-        elif self.compiler_data.code_writer.last_line != 'jmp return 1':
-            self.compiler_data.code_writer.add_line(f'{" "*INDENT_SIZE}jmp return 1')
+            self.compiler_state.code_writer.add_line('jmp end 1')
+        elif self.compiler_state.code_writer.last_line != 'jmp return 1':
+            self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}jmp return 1')
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_data, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
         expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
-        self.compiler_data.code_writer.add_lines(expression_code)
+        self.compiler_state.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_data, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         var_name = ctx.NAME().getText()
-        is_global = var_name in self.compiler_data.global_namespace
+        is_global = var_name in self.compiler_state.global_namespace
         expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
-        self.compiler_data.code_writer.add_lines(expression_code)
+        self.compiler_state.code_writer.add_lines(expression_code)
     
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         if isinstance(ctx.parentCtx, mlg1Parser.StatementContext):
-            function_call = FunctionCallHandler.from_token(self.compiler_data, ctx)
+            function_call = FunctionCallHandler.from_token(self.compiler_state, ctx)
             function_call_code = function_call.generate_code(self.current_function, RETURN_REGISTER_ADDRESS)
-            self.compiler_data.code_writer.add_lines(function_call_code)
+            self.compiler_state.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_data, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         expression_code = expression.generate_code(RETURN_REGISTER_ADDRESS)
-        self.compiler_data.code_writer.add_lines(expression_code)
-        self.compiler_data.code_writer.add_line('jmp return 1')
+        self.compiler_state.code_writer.add_lines(expression_code)
+        self.compiler_state.code_writer.add_line('jmp return 1')
     
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
         condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_data, condition_expression_token, self.current_function)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.current_function)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
-        self.compiler_data.code_writer.add_lines(expression_code)
+        self.compiler_state.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
 
         else_token = ctx.elseStatement()
         if else_token is None:
             skip_label_name = f'{self.current_function}_skip_{ctx.start.line}_{ctx.start.column}'
-            self.compiler_data.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
+            self.compiler_state.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
             self.block_end_stack.append(skip_label_name + ':')
         else:
             else_label_name = f'{self.current_function}_else_{ctx.start.line}_{ctx.start.column}'
             end_label_name = f'{self.current_function}_end_{ctx.start.line}_{ctx.start.column}'
-            self.compiler_data.code_writer.add_line(f'jmp {else_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
+            self.compiler_state.code_writer.add_line(f'jmp {else_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
             self.block_end_stack.extend([end_label_name + ':', [else_label_name + ':', f'jmp {end_label_name} 1']])
     
     def enterWhileLoop(self, ctx: mlg1Parser.WhileLoopContext):
         loop_label_name = f'{self.current_function}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_end_label_name = f'{self.current_function}_end_{ctx.start.line}_{ctx.start.column}'
         condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_data, condition_expression_token, self.current_function)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.current_function)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
-        self.compiler_data.code_writer.add_line(loop_label_name + ':')
-        self.compiler_data.code_writer.add_lines(expression_code)
+        self.compiler_state.code_writer.add_line(loop_label_name + ':')
+        self.compiler_state.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
-        self.compiler_data.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
+        self.compiler_state.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
         self.block_end_stack.append([loop_end_label_name + ':', f'jmp {loop_label_name} 1'])
     
     def enterBlock(self, ctx: mlg1Parser.BlockContext):
-        self.compiler_data.code_writer.indent_level += 1
+        self.compiler_state.code_writer.indent_level += 1
     
     def exitBlock(self, ctx: mlg1Parser.BlockContext):
-        self.compiler_data.code_writer.indent_level -= 1
+        self.compiler_state.code_writer.indent_level -= 1
         if isinstance(ctx.parentCtx, (mlg1Parser.IfStatementContext, mlg1Parser.ElseStatementContext, mlg1Parser.WhileLoopContext)):
             popped = self.block_end_stack.pop()
             if isinstance(popped, list):
-                self.compiler_data.code_writer.add_lines(list(reversed(popped)))
+                self.compiler_state.code_writer.add_lines(list(reversed(popped)))
             else:
-                self.compiler_data.code_writer.add_line(popped)
+                self.compiler_state.code_writer.add_line(popped)
 
 
-def get_compiler_data(program: mlg1Parser.ProgramContext, source_lines: list[str], walker: ParseTreeWalker) -> tuple[CompilerData, list[str]]:
+def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[str], walker: ParseTreeWalker) -> tuple[CompilerState, list[str]]:
     listener = InitialListener(source_lines)
     walker.walk(listener, program)
     data_file_rules = listener.after_walk()
-    cd = CompilerData(
+    compiler_state = CompilerState(
         source_lines, listener.meta_variables,
         listener.function_namespaces, listener.global_namespace, listener.constant_namespace,
         listener.compiler_flags, listener.current_address, CodeWriter(), []
     )
-    cd.meta_variables['memory'] += cd.heap_address  # offset requested memory by the stack memory size [note 2]
-    return cd, data_file_rules
+    compiler_state.meta_variables['memory'] += compiler_state.heap_address  # offset requested memory by the stack memory size [note 2]
+    return compiler_state, data_file_rules
 
 
 def validate_cli_args(argv: list[str]):
@@ -302,12 +302,12 @@ def main(argv) -> int:
     
     walker = ParseTreeWalker()
     
-    compiler_data, data_file_rules = get_compiler_data(program, source_lines, walker)
+    compiler_state, data_file_rules = get_compiler_state(program, source_lines, walker)
 
-    main_listener = MainListener(compiler_data)
+    main_listener = MainListener(compiler_state)
     walker.walk(main_listener, program)
-    compiler_data.code_writer.add_line('end:')
-    main_listener.compiler_data.code_writer.write_file(argv[2])
+    compiler_state.code_writer.add_line('end:')
+    main_listener.compiler_state.code_writer.write_file(argv[2])
     if data_file_rules:
         data_file_cw = CodeWriter()
         data_file_cw.add_lines(data_file_rules)

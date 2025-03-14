@@ -27,13 +27,14 @@ class CodeWriter:
             f.write('\n'.join(self.lines))
 
 
+# TODO: rename this to something that makes more sense
 @dataclasses.dataclass
 class CompilerFlags:
     contains_return: bool=False
 
 
 @dataclasses.dataclass
-class CompilerData:
+class CompilerState:
     source_lines: list[str]
     meta_variables: dict[str, int]
     function_namespaces: dict[str, dict[str, list[str]|dict[str, int]]]
