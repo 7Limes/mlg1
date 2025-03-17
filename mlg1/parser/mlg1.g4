@@ -74,7 +74,7 @@ operator
 VARIABLE_KEYWORD: ('let' | 'global');
 NAME: [a-zA-Z_][a-zA-Z0-9_]*;
 INTEGER: [0-9]+;
-STRING : '"' ( ESC | ~["\r\n\\] )* '"';
-fragment ESC : '\\' ["\\/bfnrt];
+STRING: '"' ( ESC | ~["\r\n\\] )* '"';
+fragment ESC: '\\' ["\\/bfnrt];
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 WS: [ \t\r\n]+ -> skip;
