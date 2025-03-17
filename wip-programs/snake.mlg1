@@ -30,6 +30,9 @@ fn start() {
     global snake_segments_length = 0
 
     global score = 0
+
+    color(0, 0, 0)
+    rect(0, 0, WIDTH, HEIGHT)
 }
 
 
@@ -113,9 +116,17 @@ fn move_snake() {
     set(snake_segments_end+1, snake_head_y)
     snake_segments_length = snake_segments_length + 2
 
+    // Draw snake body segment
+    color(0, 200, 0)
+    point(snake_head_x, snake_head_y)
+
     // Move and wrap snake head
     snake_head_x = (snake_head_x + snake_direction_x) % AMOUNT_CELLS
     snake_head_y = (snake_head_y + snake_direction_y) % AMOUNT_CELLS
+
+    // Draw snake head
+    color(0, 255, 0)
+    point(snake_head_x, snake_head_y)
 
     check_collisions()
     check_eat_apple()
@@ -124,22 +135,11 @@ fn move_snake() {
         snake_add_segments = snake_add_segments - 1
     }
     else {
-        remove_last_segment()
-    }
-}
-
-
-fn draw_snake() {
-    color(0, 255, 0)
-    point(snake_head_x, snake_head_y)
-
-    color(0, 200, 0)
-    let i = 0
-    while i < snake_segments_length {
-        let segment_x = get(snake_segments_start+i)
-        let segment_y = get(snake_segments_start+i+1)
+        let segment_x = get(snake_segments_start)
+        let segment_y = get(snake_segments_start+1)
+        color(0, 0, 0)
         point(segment_x, segment_y)
-        i = i + 2
+        remove_last_segment()
     }
 }
 
@@ -155,11 +155,7 @@ fn tick() {
 		input()
 		move_snake_tick()
 
-		color(0, 0, 0)
-		rect(0, 0, WIDTH, HEIGHT)
-		draw_snake()
-
-		color(255, 0, 0)
+        color(255, 0, 0)
 		point(apple_x, apple_y)
 	}
 }
