@@ -7,6 +7,7 @@ https://github.com/7Limes
 
 import sys
 import os
+import argparse
 from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from mlg1.parser.mlg1Lexer import mlg1Lexer
@@ -286,26 +287,22 @@ def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[st
     return compiler_state, data_file_rules
 
 
-def validate_cli_args(argv: list[str]):
-    if len(argv) <= 1:
-        print('USAGE: mlg1 [infile] [outfile]')
-        return -1
-    if len(argv) == 2:
-        print('Please enter an output file.')
-        return -2
-    if not os.path.isfile(argv[1]):
-        print(f'Path "{argv[1]}" does not exist or is not a file.')
-        return -3
-    return 0
+def main() -> int:
+    try:
+        arg_parser = argparse.ArgumentParser(description='Compile mlg1 programs')
+        arg_parser.add_argument('input_file', help='Path to the input mlg1 program')
+        arg_parser.add_argument('output_file', help='Path to the output g1 program')
+        parsed_args = arg_parser.parse_args()
+    except Exception as e:
+        print(e)
+        return 1
+    
+    if not os.path.isfile(parsed_args.input_file):
+        print(f'Path "{parsed_args.input_file}" does not exist or is not a file.')
+        return 2
 
-
-def main(argv) -> int:
-    valid_args = validate_cli_args(argv)
-    if valid_args != 0:
-        return valid_args
-
-    token_stream = FileStream(argv[1])
-    with open(argv[1], 'r') as f:
+    token_stream = FileStream(parsed_args.input_file)
+    with open(parsed_args.input_file, 'r') as f:
         source_lines = f.read().split('\n')
     
     error_listener = CustomErrorListener()
@@ -323,7 +320,7 @@ def main(argv) -> int:
         print(f'{COLOR_ERROR}Preprocessing errors found:')
         for message in error_listener.errors:
             preprocess_error(message)
-        return -1
+        return 3
     
     walker = ParseTreeWalker()
     
@@ -332,14 +329,14 @@ def main(argv) -> int:
     main_listener = MainListener(compiler_state)
     walker.walk(main_listener, program)
     compiler_state.code_writer.add_line('end:')
-    main_listener.compiler_state.code_writer.write_file(argv[2])
+    main_listener.compiler_state.code_writer.write_file(parsed_args.output_file)
     if data_file_rules:
         data_file_cw = CodeWriter()
         data_file_cw.add_lines(data_file_rules)
-        data_file_cw.write_file(argv[2] + 'd')
+        data_file_cw.write_file(parsed_args.output_file + 'd')
 
     return 0
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.exit(main())
