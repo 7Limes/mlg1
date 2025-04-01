@@ -3,6 +3,8 @@
 ## Features
 - make WIDTH, HEIGHT, TICKRATE, etc. act like constants so that something like WIDTH / 2 gets turned into a literal
 - check for too many or too few arguments in function call
+- more logical operators (>, <=, >=)
+- allow passing strings into functions
 - break statement
 - inline functions?
 - arrays
@@ -14,6 +16,7 @@
 - Disallow variable assignment for constants
 
 ## Bugs
+- compiler should throw an error when you try to reference an undefined var, but it doesn't
 - function call identitfier validation seems to not be working
 - function calls within expressions may fail at times
   - if a function is called from 2 different locations, the registers it uses may conflict with the expression's registers

@@ -1,0 +1,257 @@
+// Basic art program in mlg1.
+// By Miles Burkart
+
+#width 200
+#height 200
+#tickrate 60
+#memory 200
+
+
+define TOOLBAR_SIZE 20
+define TOOLBAR_COLORS_X 136
+define TOOLBAR_COLORBOX_SIZE 8
+define CURSOR_SIZE 3
+
+define AMOUNT_TOOLS 2
+define PENCIL_TOOL 0
+define BRUSH_TOOL 1
+
+define CURSOR_BUFFER_ADDRESS 0
+
+define COLOR_ARRAY_ADDRESS 20
+define COLOR_ARRAY_SIZE 16
+
+
+fn start() {
+    // Set colors; TODO: Make this into an array later because this sucks
+    set(COLOR_ARRAY_ADDRESS+HEAP, 0)
+    set(COLOR_ARRAY_ADDRESS+HEAP+1, 21760)
+    set(COLOR_ARRAY_ADDRESS+HEAP+2, 43520)
+    set(COLOR_ARRAY_ADDRESS+HEAP+3, 65280)
+    set(COLOR_ARRAY_ADDRESS+HEAP+4, 255)
+    set(COLOR_ARRAY_ADDRESS+HEAP+5, 22015)
+    set(COLOR_ARRAY_ADDRESS+HEAP+6, 43775)
+    set(COLOR_ARRAY_ADDRESS+HEAP+7, 65535)
+    set(COLOR_ARRAY_ADDRESS+HEAP+8, 16711680)
+    set(COLOR_ARRAY_ADDRESS+HEAP+9, 16733440)
+    set(COLOR_ARRAY_ADDRESS+HEAP+10, 16755200)
+    set(COLOR_ARRAY_ADDRESS+HEAP+11, 16776960)
+    set(COLOR_ARRAY_ADDRESS+HEAP+12, 16711935)
+    set(COLOR_ARRAY_ADDRESS+HEAP+13, 16733695)
+    set(COLOR_ARRAY_ADDRESS+HEAP+14, 16755455)
+    set(COLOR_ARRAY_ADDRESS+HEAP+15, 16777215)
+
+    global cursor_x = HEIGHT / 2
+    global cursor_y = WIDTH / 2
+
+    global color_r = 0
+    global color_g = 0
+    global color_b = 0
+
+    // 0 = pencil
+    // 1 = brush
+    global current_tool = 0
+
+    global brush_size = 2
+
+    color(255, 255, 255)
+    rect(0, 0, WIDTH, HEIGHT)
+
+    copy_cursor_pixels()
+}
+
+
+fn draw_toolbar_colors() {
+    let i = 0
+    while i < COLOR_ARRAY_SIZE {
+        let pixel = get(i + COLOR_ARRAY_ADDRESS + HEAP)
+        let r = pixel % 256
+        pixel = pixel / 256
+        let g = pixel % 256
+        pixel = pixel / 256
+        let b = pixel % 256
+
+        let box_x = TOOLBAR_COLORBOX_SIZE * i  % (TOOLBAR_COLORBOX_SIZE * 8) + TOOLBAR_COLORS_X
+        let box_y = i / (COLOR_ARRAY_SIZE / 2) * TOOLBAR_COLORBOX_SIZE
+        color(r, g, b)
+        rect(box_x, box_y, TOOLBAR_COLORBOX_SIZE, TOOLBAR_COLORBOX_SIZE)
+        i = i + 1
+    }
+}
+
+fn draw_toolbar() {
+    // Draw whole toolbar background and bottom border line
+    color(150, 150, 150)
+    rect(0, 0, WIDTH, TOOLBAR_SIZE)
+    color(75, 75, 75)
+    line(0, TOOLBAR_SIZE-1, WIDTH, TOOLBAR_SIZE-1)
+
+    // Draw tools background
+    rect(0, 0, TOOLBAR_SIZE*2-1, TOOLBAR_SIZE)
+
+    // Draw tools inside rectangles
+    color(150, 150, 150)
+    rect(1, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
+    rect(20, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
+
+    // Change tool bg color if that tool is selected
+    let current_tool_box_x = current_tool * (TOOLBAR_SIZE - 1)
+    color(125, 125, 255)
+    rect(current_tool_box_x+1, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
+
+    // Draw tool icons
+    color(0, 0, 0)
+    line(4, 15, 14, 5)
+
+    // Draw brush icon
+    let brush_rect_x = 29 - (brush_size / 2)
+    let brush_rect_y = 10 - (brush_size / 2)
+    rect(brush_rect_x, brush_rect_y, brush_size, brush_size)
+
+
+    draw_toolbar_colors()
+}
+
+
+fn copy_cursor_pixels() {
+    let buffer = CURSOR_BUFFER_ADDRESS + HEAP
+    let pixel = 0
+    let i = 0
+    while i < CURSOR_SIZE * 2 + 1 {
+        pixel = getpixel(cursor_x, cursor_y - CURSOR_SIZE + i)
+        set(buffer, pixel)
+        i = i + 1
+        buffer = buffer + 1
+    }
+    i = 0
+    while i < CURSOR_SIZE * 2 + 1 {
+        pixel = getpixel(cursor_x - CURSOR_SIZE + i, cursor_y)
+        set(buffer, pixel)
+        i = i + 1
+        buffer = buffer + 1
+    }
+
+}
+
+fn paste_cursor_pixels() {
+    let buffer = CURSOR_BUFFER_ADDRESS + HEAP
+    let pixel = 0
+    let r = 0
+    let g = 0
+    let b = 0
+    let i = 0
+    while i < CURSOR_SIZE * 2 + 1 {
+        pixel = get(buffer)
+        r = pixel % 256
+        pixel = pixel / 256
+        g = pixel % 256
+        pixel = pixel / 256
+        b = pixel % 256
+        color(r, g, b)
+        point(cursor_x, cursor_y - CURSOR_SIZE + i)
+        i = i + 1
+        buffer = buffer + 1
+    }
+    i = 0
+    while i < CURSOR_SIZE * 2 + 1 {
+        pixel = get(buffer)
+        r = pixel % 256
+        pixel = pixel / 256
+        g = pixel % 256
+        pixel = pixel / 256
+        b = pixel % 256
+        color(r, g, b)
+        point(cursor_x - CURSOR_SIZE + i, cursor_y)
+        i = i + 1
+        buffer = buffer + 1
+    }
+}
+
+
+fn draw_cursor() {
+    color(20, 20, 20)
+    line(cursor_x, cursor_y-CURSOR_SIZE, cursor_x, cursor_y-1)
+    line(cursor_x, cursor_y+1, cursor_x, cursor_y+CURSOR_SIZE)
+    line(cursor_x-CURSOR_SIZE, cursor_y, cursor_x-1, cursor_y)
+    line(cursor_x+1, cursor_y, cursor_x+CURSOR_SIZE, cursor_y)
+}
+
+fn move_cursor() {
+    paste_cursor_pixels()
+    cursor_x = (cursor_x + RIGHT - LEFT) % WIDTH
+    cursor_y = (cursor_y + DOWN - UP) % HEIGHT
+    copy_cursor_pixels()
+}
+
+
+fn use_pencil_tool() {
+    color(color_r, color_g, color_b)
+    point(cursor_x, cursor_y)
+    copy_cursor_pixels()
+}
+
+
+fn use_brush_tool() {
+    let brush_x = cursor_x-brush_size/2
+    let brush_y = cursor_y-brush_size/2
+    color(color_r, color_g, color_b)
+    rect(brush_x, brush_y, brush_size, brush_size)
+    copy_cursor_pixels()
+}
+
+
+fn use_tool() {
+    if current_tool == PENCIL_TOOL {
+        use_pencil_tool()
+    }
+    else { if current_tool == BRUSH_TOOL {
+        use_brush_tool()
+    }}
+}
+
+
+fn click_toolbar() {
+    if A * (TOOLBAR_COLORS_X < cursor_x) * (cursor_y < TOOLBAR_SIZE - 4) {
+        let pixel = getpixel(cursor_x, cursor_y)
+        color_r = pixel % 256
+        pixel = pixel / 256
+        color_g = pixel % 256
+        pixel = pixel / 256
+        color_b = pixel % 256
+    }
+}
+
+fn select_tool() {
+    // Cycle tool
+    if !prev_CONTROL2 * CONTROL2 {
+        current_tool = (current_tool + 1) % AMOUNT_TOOLS
+    }
+
+    // Change brush size
+    if (current_tool == BRUSH_TOOL) * (!prev_B * B){
+        brush_size = brush_size + 1
+        if 11 < brush_size {
+            brush_size = 2
+        }
+    }
+
+    let prev_CONTROL2 = CONTROL2
+    let prev_B = B
+}
+
+
+fn tick() {
+    move_cursor()
+    select_tool()
+    if cursor_y < TOOLBAR_SIZE {
+        click_toolbar()
+    }
+    else {
+        if A {
+            use_tool()
+        }
+    }
+
+    draw_toolbar()
+    draw_cursor()
+}
