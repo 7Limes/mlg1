@@ -65,5 +65,8 @@ BUILTIN_FUNCTIONS = {
     ],
     'print': [
         'log {a0}'
+    ],
+    'getpixel': [
+        'getp {return_register} {a0} {a1}'
     ]
 }
