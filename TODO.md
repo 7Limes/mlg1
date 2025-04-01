@@ -1,14 +1,12 @@
 # TODO
 
 ## Features
+- make WIDTH, HEIGHT, TICKRATE, etc. act like constants so that something like WIDTH / 2 gets turned into a literal
 - check for too many or too few arguments in function call
-- strings
-  - store in .g1d file
-  - length prefixed
 - break statement
 - inline functions?
 - arrays
-- importing files
+- importing functions from other files
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register
   - if there's more than 1, then we have to use the arithmetic registers
