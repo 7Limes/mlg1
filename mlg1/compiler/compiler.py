@@ -50,7 +50,7 @@ class InitialListener(BaseListener):
         self.string_vars: dict[int, int] = {}
         self.current_function: str = None
         self.data_entries: dict[str, dict[str, str]] = {}
-        self.compiler_flags = CompilerFlags()
+        self.contains_return: bool = False
     
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
         name = ctx.META_VARIABLE_NAME().getText()
@@ -68,7 +68,7 @@ class InitialListener(BaseListener):
             self.error(parameter_list_token, f'{function_name} function cannot have parameters.')
         
         if function_name not in {'start', 'tick'}:
-            self.compiler_flags.contains_return = True  # add returning code if a custom function exists [note 1]
+            self.contains_return = True  # add returning code if a custom function exists [note 1]
         
         self.function_namespaces[function_name] = {'parameters': [], 'locals': {}}
         if parameter_list_token:
@@ -123,7 +123,7 @@ class InitialListener(BaseListener):
         name = ctx.NAME().getText()
         path = ctx.STRING().getText()
         self.data_entries[name] = {'type': 'f', 'path': path[1:-1]}
-    
+
 
     def after_walk(self) -> list[str]:
         """
@@ -166,7 +166,7 @@ class MainListener(BaseListener):
         for meta_var_name, meta_var_value in self.compiler_state.meta_variables.items():
             self.compiler_state.code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
         
-        if self.compiler_state.compiler_flags.contains_return:
+        if self.compiler_state.contains_return:
             self.compiler_state.code_writer.add_lines(RETURN_CODE)
     
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
@@ -181,12 +181,26 @@ class MainListener(BaseListener):
             self.compiler_state.code_writer.lines.pop()
         else:
             self.compiler_state.code_writer.add_line(inversion_instruction)
+        
+    
+    def _add_source_code_comment(self, ctx):
+        """
+        Adds a comment containing the source line that corresponds to a block of generated code.
+        """
+        if not self.compiler_state.compiler_flags.include_source:
+            return
+
+        line_stripped = self.source_lines[ctx.start.line-1].strip()
+        self.compiler_state.code_writer.add_lines([
+            '',  # Extra line for padding
+            f'; SOURCE: {line_stripped}'
+        ])
 
 
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
         function_name = ctx.NAME().getText()
         self.compiler_state.code_writer.add_lines(['', f'{function_name}:'])
-        if function_name == 'start' and self.compiler_state.compiler_flags.contains_return:
+        if function_name == 'start' and self.compiler_state.contains_return:
             self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
         self.current_function = function_name
     
@@ -198,6 +212,8 @@ class MainListener(BaseListener):
             self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}jmp return 1')
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
+        self._add_source_code_comment(ctx)
+
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
         if ctx.STRING():
@@ -211,6 +227,8 @@ class MainListener(BaseListener):
             self.compiler_state.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
+        self._add_source_code_comment(ctx)
+
         expression_token = ctx.expression()
         expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         var_name = ctx.NAME().getText()
@@ -220,11 +238,15 @@ class MainListener(BaseListener):
     
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         if isinstance(ctx.parentCtx, mlg1Parser.StatementContext):
+            self._add_source_code_comment(ctx)
+
             function_call = FunctionCallHandler.from_token(self.compiler_state, ctx)
             function_call_code = function_call.generate_code(self.current_function, RETURN_REGISTER_ADDRESS)
             self.compiler_state.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
+        self._add_source_code_comment(ctx)
+        
         expression_token = ctx.expression()
         expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
         expression_code = expression.generate_code(RETURN_REGISTER_ADDRESS)
@@ -232,6 +254,8 @@ class MainListener(BaseListener):
         self.compiler_state.code_writer.add_line('jmp return 1')
     
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
+        self._add_source_code_comment(ctx)
+
         condition_expression_token = ctx.expression()
         condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.current_function)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
@@ -250,6 +274,8 @@ class MainListener(BaseListener):
             self.block_end_stack.extend([end_label_name + ':', [else_label_name + ':', f'jmp {end_label_name} 1']])
     
     def enterWhileLoop(self, ctx: mlg1Parser.WhileLoopContext):
+        self._add_source_code_comment(ctx)
+
         loop_label_name = f'{self.current_function}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_end_label_name = f'{self.current_function}_end_{ctx.start.line}_{ctx.start.column}'
         condition_expression_token = ctx.expression()
@@ -274,14 +300,14 @@ class MainListener(BaseListener):
                 self.compiler_state.code_writer.add_line(popped)
 
 
-def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[str], walker: ParseTreeWalker) -> tuple[CompilerState, list[str]]:
+def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[str], compiler_flags: CompilerFlags, walker: ParseTreeWalker) -> tuple[CompilerState, list[str]]:
     listener = InitialListener(source_lines)
     walker.walk(listener, program)
     data_file_rules = listener.after_walk()
     compiler_state = CompilerState(
-        source_lines, listener.meta_variables,
+        source_lines, compiler_flags, listener.meta_variables,
         listener.function_namespaces, listener.global_namespace, listener.constant_namespace, listener.string_vars,
-        listener.compiler_flags, listener.current_address, CodeWriter(), []
+        listener.contains_return, listener.current_address, CodeWriter(), []
     )
     compiler_state.meta_variables['memory'] += compiler_state.heap_address  # offset requested memory by the stack memory size [note 2]
     return compiler_state, data_file_rules
@@ -292,6 +318,7 @@ def main() -> int:
         arg_parser = argparse.ArgumentParser(description='Compile mlg1 programs')
         arg_parser.add_argument('input_file', help='Path to the input mlg1 program')
         arg_parser.add_argument('output_file', help='Path to the output g1 program')
+        arg_parser.add_argument('--include_source', '-s', action='store_true', help='Add source code comments to the output program')
         parsed_args = arg_parser.parse_args()
     except Exception as e:
         print(e)
@@ -324,7 +351,8 @@ def main() -> int:
     
     walker = ParseTreeWalker()
     
-    compiler_state, data_file_rules = get_compiler_state(program, source_lines, walker)
+    compiler_flags = CompilerFlags(parsed_args.include_source)
+    compiler_state, data_file_rules = get_compiler_state(program, source_lines, compiler_flags, walker)
 
     main_listener = MainListener(compiler_state)
     walker.walk(main_listener, program)

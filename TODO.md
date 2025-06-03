@@ -15,6 +15,9 @@
 - Check for reserved names on constants and file load identifiers
 - Disallow variable assignment for constants
 
+- Option to include user-written comments in generated code
+
+
 ## Bugs
 - compiler should throw an error when you try to reference an undefined var, but it doesn't
 - function call identitfier validation seems to not be working

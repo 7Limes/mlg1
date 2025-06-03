@@ -27,21 +27,25 @@ class CodeWriter:
             f.write('\n'.join(self.lines))
 
 
-# TODO: rename this to something that makes more sense
 @dataclasses.dataclass
 class CompilerFlags:
-    contains_return: bool=False
+    """
+    Contains user provided flags for the compiler to use.
+    """
+    
+    include_source: bool
 
 
 @dataclasses.dataclass
 class CompilerState:
     source_lines: list[str]
+    compiler_flags: CompilerFlags
     meta_variables: dict[str, int]
     function_namespaces: dict[str, dict[str, list[str]|dict[str, int]]]
     global_namespace: dict[str, int]
     constant_namespace: dict[str, int]
     string_vars: dict[int, int]
-    compiler_flags: CompilerFlags
+    contains_return: bool
     heap_address: int
     code_writer: CodeWriter
     used_registers: list[str]
