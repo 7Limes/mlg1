@@ -4,13 +4,14 @@ from mlg1.compiler.util import error
 
 
 class CodeWriter:
-    def __init__(self):
+    def __init__(self, indent_size: int):
         self.lines: list[str] = []
+        self.indent_size = indent_size
         self.indent_level = 0
         self.last_line: str = ''
 
     def add_line(self, line: str, from_start: bool=False):
-        wrote_line = ' '*self.indent_level*INDENT_SIZE + line
+        wrote_line = ' '*self.indent_level*self.indent_size + line
         if from_start:
             self.lines.insert(0, wrote_line)
         else:
@@ -34,6 +35,7 @@ class CompilerFlags:
     """
     
     include_source: bool
+    indent_size: int
 
 
 @dataclasses.dataclass

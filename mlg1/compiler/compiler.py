@@ -52,6 +52,26 @@ class InitialListener(BaseListener):
         self.data_entries: dict[str, dict[str, str]] = {}
         self.contains_return: bool = False
     
+    def _declare_variable(self, ctx: ParserRuleContext, name: str, is_global: bool):
+        """
+        Declares a new variable at the current address. Does not increment `self.current_address`.
+        """
+        # Error checking
+        if name in RESERVED_NAMES:
+            self.error(ctx, f'Variable name "{name}" is reserved.')
+        current_locals = self.function_namespaces[self.current_function]['locals']
+        if name in current_locals or name in self.global_namespace or name in self.constant_namespace:
+            self.error(ctx, f'Variable "{name}" declared twice.')
+        if self.current_function is None:
+            self.error(ctx, 'Current function is None.')
+        
+        # Set namespace values
+        if is_global:  # global var
+            self.global_namespace[name] = self.current_address
+        else:  # local var
+            self.function_namespaces[self.current_function]['locals'][name] = self.current_address
+
+    
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
         name = ctx.META_VARIABLE_NAME().getText()
         value = int(ctx.INTEGER().getText())
@@ -91,32 +111,46 @@ class InitialListener(BaseListener):
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
         name = ctx.NAME().getText()
         keyword = ctx.VARIABLE_KEYWORD().getText()  # either 'let' or 'global'
-        if name in RESERVED_NAMES:
-            self.error(ctx, f'Variable name "{name}" is reserved.')
-        current_locals = self.function_namespaces[self.current_function]['locals']
-        if name in current_locals or name in self.global_namespace or name in self.constant_namespace:
-            self.error(ctx, f'Variable "{name}" declared twice.')
-        if self.current_function is None:
-            self.error(ctx, 'Current function is None.')
-
-        is_local = keyword == 'let'
+        self._declare_variable(ctx, name, keyword == 'global')
 
         if ctx.STRING() is not None:
             self.data_entries[name] = {
                 'type': 's',
                 'string': ctx.STRING().getText()[1:-1],
                 'var_address': self.current_address
-            }
+        }
         
-        if is_local:  # local var
-            self.function_namespaces[self.current_function]['locals'][name] = self.current_address
-        else:  # global var
-            self.global_namespace[name] = self.current_address
         self.current_address += 1
+    
+    def enterArrayDeclaration(self, ctx: mlg1Parser.ArrayDeclarationContext):
+        array_size_token: mlg1Parser.ArraySizeContext = ctx.arraySize()
+        if array_size_token.NAME() is not None:  # Defined constant size
+            size_constant_name = array_size_token.NAME().getText()
+            if size_constant_name not in self.constant_namespace:
+                self.error(array_size_token, f'Tried to declare array size with undefined constant "{size_constant_name}".')
+            array_size = self.constant_namespace[size_constant_name]
+        else:  # Integer literal size
+            array_size = int(array_size_token.INTEGER().getText())
+        
+        if array_size <= 0:
+            self.error(array_size_token, f'Array size must be greater than zero.')
+        
+        initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.arrayInitializerList()
+        if initializer_list_token is not None:
+            array_value_tokens = list(initializer_list_token.getChildren(lambda c: isinstance(c, mlg1Parser.ExpressionContext)))
+            if len(array_value_tokens) > array_size:
+                self.error(initializer_list_token, f'Array initializer length exceeds array size.')
+        
+        name = ctx.NAME().getText()
+        keyword = ctx.VARIABLE_KEYWORD().getText()
+        self._declare_variable(ctx, name, keyword == 'global')
+
+        # Add `array_size` here to allocate space for the array
+        self.current_address += array_size + 1
     
     def enterConstantDefinition(self, ctx: mlg1Parser.ConstantDefinitionContext):
         name = ctx.NAME().getText()
-        value = int(ctx.INTEGER().getText())
+        value = int(ctx.signedInteger().getText())
         self.constant_namespace[name] = value
     
     def enterLoadFile(self, ctx):
@@ -167,7 +201,7 @@ class MainListener(BaseListener):
             self.compiler_state.code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
         
         if self.compiler_state.contains_return:
-            self.compiler_state.code_writer.add_lines(RETURN_CODE)
+            self.compiler_state.code_writer.add_lines(get_return_code(self.compiler_state.compiler_flags.indent_size))
     
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
         if is_global:
@@ -189,11 +223,11 @@ class MainListener(BaseListener):
         """
         if not self.compiler_state.compiler_flags.include_source:
             return
-
+        
         line_stripped = self.source_lines[ctx.start.line-1].strip()
         self.compiler_state.code_writer.add_lines([
             '',  # Extra line for padding
-            f'; SOURCE: {line_stripped}'
+            f'; SRC@{ctx.start.line}:{ctx.start.column} {line_stripped}'
         ])
 
 
@@ -201,7 +235,8 @@ class MainListener(BaseListener):
         function_name = ctx.NAME().getText()
         self.compiler_state.code_writer.add_lines(['', f'{function_name}:'])
         if function_name == 'start' and self.compiler_state.contains_return:
-            self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
+            whitespace = " "*self.compiler_state.compiler_flags.indent_size
+            self.compiler_state.code_writer.add_line(f'{whitespace}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
         self.current_function = function_name
     
     def exitFunction(self, ctx: mlg1Parser.FunctionContext):
@@ -209,7 +244,8 @@ class MainListener(BaseListener):
         if ctx.NAME().getText() in {'start', 'tick'}:
             self.compiler_state.code_writer.add_line('jmp end 1')
         elif self.compiler_state.code_writer.last_line != 'jmp return 1':
-            self.compiler_state.code_writer.add_line(f'{" "*INDENT_SIZE}jmp return 1')
+            whitespace = " "*self.compiler_state.compiler_flags.indent_size
+            self.compiler_state.code_writer.add_line(f'{whitespace}jmp return 1')
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
         self._add_source_code_comment(ctx)
@@ -236,6 +272,22 @@ class MainListener(BaseListener):
         expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
         self.compiler_state.code_writer.add_lines(expression_code)
     
+    def enterArrayDeclaration(self, ctx):
+        self._add_source_code_comment(ctx)
+
+        var_name = ctx.NAME().getText()
+        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+        array_address = self._get_var_address(var_name, is_global)
+        self.compiler_state.code_writer.add_line(f'mov {array_address} {array_address+1}')
+
+        initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.arrayInitializerList()
+        if initializer_list_token is not None:
+            array_value_tokens = initializer_list_token.getChildren(lambda c: isinstance(c, mlg1Parser.ExpressionContext))
+            for i, array_value_token in enumerate(array_value_tokens):
+                expression = ExpressionHandler(self.compiler_state, array_value_token, self.current_function)
+                expression_code = expression.generate_code(array_address+i+1)
+                self.compiler_state.code_writer.add_lines(expression_code)
+        
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         if isinstance(ctx.parentCtx, mlg1Parser.StatementContext):
             self._add_source_code_comment(ctx)
@@ -307,7 +359,7 @@ def get_compiler_state(program: mlg1Parser.ProgramContext, source_lines: list[st
     compiler_state = CompilerState(
         source_lines, compiler_flags, listener.meta_variables,
         listener.function_namespaces, listener.global_namespace, listener.constant_namespace, listener.string_vars,
-        listener.contains_return, listener.current_address, CodeWriter(), []
+        listener.contains_return, listener.current_address, CodeWriter(compiler_flags.indent_size), []
     )
     compiler_state.meta_variables['memory'] += compiler_state.heap_address  # offset requested memory by the stack memory size [note 2]
     return compiler_state, data_file_rules
@@ -319,6 +371,7 @@ def main() -> int:
         arg_parser.add_argument('input_file', help='Path to the input mlg1 program')
         arg_parser.add_argument('output_file', help='Path to the output g1 program')
         arg_parser.add_argument('--include_source', '-s', action='store_true', help='Add source code comments to the output program')
+        arg_parser.add_argument('--indent_size', '-i', type=int, default=DEFAULT_INDENT_SIZE, help='Set the indent size to be used')
         parsed_args = arg_parser.parse_args()
     except Exception as e:
         print(e)
@@ -351,7 +404,7 @@ def main() -> int:
     
     walker = ParseTreeWalker()
     
-    compiler_flags = CompilerFlags(parsed_args.include_source)
+    compiler_flags = CompilerFlags(parsed_args.include_source, parsed_args.indent_size)
     compiler_state, data_file_rules = get_compiler_state(program, source_lines, compiler_flags, walker)
 
     main_listener = MainListener(compiler_state)

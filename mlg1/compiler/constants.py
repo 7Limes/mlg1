@@ -11,13 +11,14 @@ CALL_STACK_DATA_ADDRESS = 32
 LOCAL_VAR_ADDRESS = 64
 
 
-INDENT_SIZE = 4
+DEFAULT_INDENT_SIZE = 4
 
-RETURN_CODE = [
+
+RETURN_CODE_TEMPLATE = [
     'return:',
-    f'{" "*INDENT_SIZE}sub {CALL_STACK_POINTER_ADDRESS} ${CALL_STACK_POINTER_ADDRESS} 1',
-    f'{" "*INDENT_SIZE}movp {RETURN_ARITHMETIC_ADDRESS} ${CALL_STACK_POINTER_ADDRESS}',
-    f'{" "*INDENT_SIZE}jmp ${RETURN_ARITHMETIC_ADDRESS} 1'
+    f'{{ws}}sub {CALL_STACK_POINTER_ADDRESS} ${CALL_STACK_POINTER_ADDRESS} 1',
+    f'{{ws}}movp {RETURN_ARITHMETIC_ADDRESS} ${CALL_STACK_POINTER_ADDRESS}',
+    f'{{ws}}jmp ${RETURN_ARITHMETIC_ADDRESS} 1'
 ]
 
 META_VAR_DEFAULTS = {'width': 100, 'height': 100, 'tickrate': 60, 'memory': 0}
@@ -70,3 +71,13 @@ BUILTIN_FUNCTIONS = {
         'getp {return_register} {a0} {a1}'
     ]
 }
+
+
+def get_return_code(indent_size: int) -> list[str]:
+    """
+    Generates the return subroutine.
+    """
+    return list(map(
+        lambda s: s.format(ws=f'{" "*indent_size}'),
+        RETURN_CODE_TEMPLATE
+    ))

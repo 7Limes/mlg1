@@ -7,8 +7,9 @@ metaVariable: '#' META_VARIABLE_NAME INTEGER;
 
 loadFile: '$' NAME STRING;
 
-constantDefinition: 'define' NAME INTEGER;
-
+constantDefinition: 'define' NAME signedInteger;
+signedInteger: '-'? INTEGER;
+    
 function: 'fn' NAME '(' parameterList? ')' block;
 
 parameterList: NAME (',' NAME)*;
@@ -18,6 +19,7 @@ block: '{' statement* '}';
 statement
     : variableDeclaration
     | assignment
+    | arrayDeclaration
     | functionCall
     | returnStatement
     | ifStatement
@@ -26,6 +28,10 @@ statement
 
 variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
 assignment: NAME '=' expression;
+
+arrayDeclaration: VARIABLE_KEYWORD NAME '[' arraySize ']' ('=' '[' arrayInitializerList? ']')?;
+arraySize: INTEGER | NAME;
+arrayInitializerList: expression (',' expression)*;
 
 ifStatement: 'if' expression block ('else' elseStatement)?;
 

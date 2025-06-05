@@ -44,6 +44,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#signedInteger.
+    def enterSignedInteger(self, ctx:mlg1Parser.SignedIntegerContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#signedInteger.
+    def exitSignedInteger(self, ctx:mlg1Parser.SignedIntegerContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#function.
     def enterFunction(self, ctx:mlg1Parser.FunctionContext):
         pass
@@ -95,6 +104,33 @@ class mlg1Listener(ParseTreeListener):
 
     # Exit a parse tree produced by mlg1Parser#assignment.
     def exitAssignment(self, ctx:mlg1Parser.AssignmentContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#arrayDeclaration.
+    def enterArrayDeclaration(self, ctx:mlg1Parser.ArrayDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#arrayDeclaration.
+    def exitArrayDeclaration(self, ctx:mlg1Parser.ArrayDeclarationContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#arraySize.
+    def enterArraySize(self, ctx:mlg1Parser.ArraySizeContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#arraySize.
+    def exitArraySize(self, ctx:mlg1Parser.ArraySizeContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#arrayInitializerList.
+    def enterArrayInitializerList(self, ctx:mlg1Parser.ArrayInitializerListContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#arrayInitializerList.
+    def exitArrayInitializerList(self, ctx:mlg1Parser.ArrayInitializerListContext):
         pass
 
 
