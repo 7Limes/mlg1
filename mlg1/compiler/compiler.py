@@ -184,6 +184,10 @@ class InitialListener(BaseListener):
         
         self.constant_namespace[HEAP_VARIABLE_NAME] = self.current_address
 
+        # Add meta vars to the constant namespace to allow constant propagation
+        for meta_var_name in META_VAR_DEFAULTS:
+            self.constant_namespace[meta_var_name.upper()] = self.meta_variables[meta_var_name]
+
         return data_file_rules
 
 
