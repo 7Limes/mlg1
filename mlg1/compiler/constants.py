@@ -72,6 +72,17 @@ BUILTIN_FUNCTIONS = {
     ]
 }
 
+BUILTIN_FUNCTION_ARGUMENT_COUNTS = {
+    'color': 3,
+    'point': 2,
+    'line': 4,
+    'rect': 4,
+    'get': 1,
+    'set': 2,
+    'print': 1,
+    'getpixel': 2
+}
+
 
 def get_return_code(indent_size: int) -> list[str]:
     """

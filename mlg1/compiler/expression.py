@@ -48,11 +48,11 @@ OPERATORS = {
 
 
 class FunctionCallHandler:
-    def __init__(self, compiler_state: CompilerState, function_name: str, arguments: list[mlg1Parser.ExpressionContext], token_position: tuple[int, int]):
+    def __init__(self, compiler_state: CompilerState, function_name: str, arguments: list[mlg1Parser.ExpressionContext], token: mlg1Parser.FunctionCallContext):
         self.compiler_state = compiler_state
         self.function_name = function_name
         self.arguments = arguments
-        self.token_position = token_position
+        self.token = token
 
     @staticmethod
     def from_token(compiler_state: CompilerState, token: mlg1Parser.FunctionCallContext):
@@ -61,8 +61,7 @@ class FunctionCallHandler:
         function_args = []
         if argument_list_token is not None:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
-        token_position = (token.start.line, token.start.column)
-        return FunctionCallHandler(compiler_state, function_name, function_args, token_position)
+        return FunctionCallHandler(compiler_state, function_name, function_args, token)
 
     def generate_builtin(self, parent_function_name: str, return_register: int):
         generated_lines = []
@@ -95,7 +94,8 @@ class FunctionCallHandler:
             expression_code = expression.generate_code(destination)
             generated_lines.extend(expression_code)
 
-        return_label = f'{self.function_name}_return_{self.token_position[0]}_{self.token_position[1]}'
+        token_position = (self.token.start.line, self.token.start.column)
+        return_label = f'{self.function_name}_return_{token_position[0]}_{token_position[1]}'
         final_lines = [
             f'mov ${CALL_STACK_POINTER_ADDRESS} {return_label}',
             f'add {CALL_STACK_POINTER_ADDRESS} ${CALL_STACK_POINTER_ADDRESS} 1',
@@ -106,6 +106,19 @@ class FunctionCallHandler:
         return generated_lines
 
     def generate_code(self, parent_function_name: str, builtin_return_register: int) -> list[str]:
+        name = self.function_name
+
+        if name not in BUILTIN_FUNCTIONS and name not in self.compiler_state.function_namespaces:
+            error_ctx(self.token, self.compiler_state.source_lines, f'Unrecognized function "{name}"')
+
+        if name in BUILTIN_FUNCTIONS:
+            amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[name]
+        else:
+            amount_args = len(self.compiler_state.function_namespaces[name]['parameters'])
+        amount_passed_args = len(self.arguments)
+        if amount_passed_args != amount_args:
+            error_ctx(self.token, self.compiler_state.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
+        
         if self.function_name in BUILTIN_FUNCTIONS:
             return self.generate_builtin(parent_function_name, builtin_return_register)
         return self.generate_regular(parent_function_name)
