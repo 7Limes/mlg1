@@ -111,7 +111,7 @@ class FunctionCallHandler:
         name = self.function_name
 
         if name not in BUILTIN_FUNCTIONS and name not in self.compiler_state.function_namespaces:
-            error_ctx(self.token, self.compiler_state.source_lines, f'Unrecognized function "{name}"')
+            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Unrecognized function "{name}"')
 
         if name in BUILTIN_FUNCTIONS:
             amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[name]
@@ -119,7 +119,7 @@ class FunctionCallHandler:
             amount_args = len(self.compiler_state.function_namespaces[name]['parameters'])
         amount_passed_args = len(self.arguments)
         if amount_passed_args != amount_args:
-            error_ctx(self.token, self.compiler_state.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
+            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
         
         if self.function_name in BUILTIN_FUNCTIONS:
             return self.generate_builtin(parent_function_name, builtin_return_register)
@@ -225,11 +225,11 @@ class ExpressionHandler:
                 if OPERATORS[value].get('unary') is None:
                     operand_count -= 1
                     if operand_count <= 0:
-                        error_ctx(self.ctx, self.compiler_state.source_lines, 'Invalid RPN expression.')
+                        error_ctx(self.ctx, self.compiler_state.current_function_token.source_lines, 'Invalid RPN expression.')
             else:
                 operand_count += 1
         if operand_count != 1:
-            error_ctx(self.ctx, self.compiler_state.source_lines, 'RPN expression has leftover values.')
+            error_ctx(self.ctx, self.compiler_state.current_function_token.source_lines, 'RPN expression has leftover values.')
     
     def _reduce(self):
         stack = []
@@ -329,7 +329,7 @@ def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContex
         if name is not None and name.getText() not in function_locals \
             and name.getText() not in compiler_state.global_namespace \
             and name.getText() not in compiler_state.constant_namespace:
-            error_ctx(token, compiler_state.source_lines, f'Tried to reference undefined variable "{name}"')
+            error_ctx(token, compiler_state.current_function_token.source_lines, f'Tried to reference undefined variable "{name}"')
         return token.getText()
     if isinstance(token, mlg1Parser.OperatorContext):  # Operator
         return token.getText()

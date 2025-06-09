@@ -1,11 +1,11 @@
 grammar mlg1;
 
-program: metaVariable* includeFile* loadFile* constantDefinition* function+;
+program: metaVariable* includeFile* loadFile* constantDefinition* function*;
 
 META_VARIABLE_NAME: 'width'|'height'|'memory'|'tickrate';
 metaVariable: '#' META_VARIABLE_NAME INTEGER;
 
-includeFile: '%include' STRING;
+includeFile: 'include' STRING;
 
 loadFile: '$' NAME STRING;
 

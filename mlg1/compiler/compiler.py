@@ -121,7 +121,7 @@ class PreprocessListener(BaseListener):
                 self.compiler_state.current_address += 1
         self.current_function = function_name
         
-        function_token = FunctionToken(ctx, self.source_file, self.source_lines)
+        function_token = FunctionToken(ctx, function_name, self.source_file, self.source_lines)
         self.compiler_state.function_tokens.append(function_token)
     
     def exitFunction(self, _ctx: mlg1Parser.FunctionContext):
@@ -169,14 +169,13 @@ class PreprocessListener(BaseListener):
 
 
 class CodegenListener(BaseListener):
-    def __init__(self, compiler_state: CompilerState, code_writer: CodeWriter, source_lines: list[str], source_file: str) -> None:
-        super().__init__(source_lines)
-        self.source_file = source_file
+    def __init__(self, compiler_state: CompilerState, code_writer: CodeWriter, function_token: FunctionToken) -> None:
+        super().__init__(function_token.source_lines)
 
         self.compiler_state = compiler_state
         self.code_writer = code_writer
 
-        self.current_function = None
+        self.function_token: FunctionToken = function_token
 
         self.block_end_stack: list[str] = []
     
@@ -184,7 +183,7 @@ class CodegenListener(BaseListener):
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
         if is_global:
             return self.compiler_state.global_namespace[var_name]
-        return self.compiler_state.function_namespaces[self.current_function]['locals'][var_name]
+        return self.compiler_state.function_namespaces[self.function_token.name]['locals'][var_name]
 
 
     def _add_conditional_inversion(self):
@@ -205,7 +204,7 @@ class CodegenListener(BaseListener):
         line_stripped = self.source_lines[ctx.start.line-1].strip()
         self.code_writer.add_lines([
             '',  # Extra line for padding
-            f'; {self.source_file}@{ctx.start.line}:{ctx.start.column} {line_stripped}'
+            f'; {self.function_token.source_file}@{ctx.start.line}:{ctx.start.column} {line_stripped}'
         ])
 
 
@@ -218,10 +217,8 @@ class CodegenListener(BaseListener):
         if function_name == 'start' and self.compiler_state.contains_return:
             whitespace = " "*self.compiler_state.compiler_flags.indent_size
             self.code_writer.add_line(f'{whitespace}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
-        self.current_function = function_name
     
     def exitFunction(self, ctx: mlg1Parser.FunctionContext):
-        self.current_function = None
         if ctx.NAME().getText() in {'start', 'tick'}:
             self.code_writer.add_line('jmp end 1')
         elif self.code_writer.last_line != 'jmp return 1':
@@ -239,7 +236,7 @@ class CodegenListener(BaseListener):
             self.code_writer.add_line(f'mov {var_address} {string_address}')
         else:
             expression_token = ctx.expression()
-            expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+            expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
             expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
             self.code_writer.add_lines(expression_code)
     
@@ -247,7 +244,7 @@ class CodegenListener(BaseListener):
         self._add_source_code_comment(ctx)
 
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
         var_name = ctx.NAME().getText()
         is_global = var_name in self.compiler_state.global_namespace
         expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
@@ -265,7 +262,7 @@ class CodegenListener(BaseListener):
         if initializer_list_token is not None:
             array_value_tokens = initializer_list_token.getChildren(lambda c: isinstance(c, mlg1Parser.ExpressionContext))
             for i, array_value_token in enumerate(array_value_tokens):
-                expression = ExpressionHandler(self.compiler_state, array_value_token, self.current_function)
+                expression = ExpressionHandler(self.compiler_state, array_value_token, self.function_token.name)
                 expression_code = expression.generate_code(array_address+i+1)
                 self.code_writer.add_lines(expression_code)
         
@@ -274,14 +271,14 @@ class CodegenListener(BaseListener):
             self._add_source_code_comment(ctx)
 
             function_call = FunctionCallHandler.from_token(self.compiler_state, ctx)
-            function_call_code = function_call.generate_code(self.current_function, RETURN_REGISTER_ADDRESS)
+            function_call_code = function_call.generate_code(self.function_token.name, RETURN_REGISTER_ADDRESS)
             self.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
         self._add_source_code_comment(ctx)
         
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
         expression_code = expression.generate_code(RETURN_REGISTER_ADDRESS)
         self.code_writer.add_lines(expression_code)
         self.code_writer.add_line('jmp return 1')
@@ -290,29 +287,29 @@ class CodegenListener(BaseListener):
         self._add_source_code_comment(ctx)
 
         condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.current_function)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         self.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
 
         else_token = ctx.elseStatement()
         if else_token is None:
-            skip_label_name = f'{self.current_function}_skip_{ctx.start.line}_{ctx.start.column}'
+            skip_label_name = f'{self.function_token.name}_skip_{ctx.start.line}_{ctx.start.column}'
             self.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
             self.block_end_stack.append(skip_label_name + ':')
         else:
-            else_label_name = f'{self.current_function}_else_{ctx.start.line}_{ctx.start.column}'
-            end_label_name = f'{self.current_function}_end_{ctx.start.line}_{ctx.start.column}'
+            else_label_name = f'{self.function_token.name}_else_{ctx.start.line}_{ctx.start.column}'
+            end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
             self.code_writer.add_line(f'jmp {else_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
             self.block_end_stack.extend([end_label_name + ':', [else_label_name + ':', f'jmp {end_label_name} 1']])
     
     def enterWhileLoop(self, ctx: mlg1Parser.WhileLoopContext):
         self._add_source_code_comment(ctx)
 
-        loop_label_name = f'{self.current_function}_loop_{ctx.start.line}_{ctx.start.column}'
-        loop_end_label_name = f'{self.current_function}_end_{ctx.start.line}_{ctx.start.column}'
+        loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
+        loop_end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
         condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.current_function)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         self.code_writer.add_line(loop_label_name + ':')
         self.code_writer.add_lines(expression_code)
@@ -420,7 +417,8 @@ def codegen(compiler_state: CompilerState, code_writer: CodeWriter):
 
     # Walk through each function with the codegen listener
     for function_token in compiler_state.function_tokens:
-        listener = CodegenListener(compiler_state, code_writer, function_token.source_lines, function_token.source_file)
+        compiler_state.current_function_token = function_token
+        listener = CodegenListener(compiler_state, code_writer, function_token)
         walker.walk(listener, function_token.token)
     
     code_writer.add_line('end:')

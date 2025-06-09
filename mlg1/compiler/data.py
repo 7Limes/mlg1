@@ -22,6 +22,7 @@ class CompilerFlags:
 @dataclass
 class FunctionToken:
     token: mlg1Parser.FunctionContext
+    name: str
     source_file: str
     source_lines: list[str]
 
@@ -40,6 +41,7 @@ class CompilerState:
     heap_address: int = -1
 
     function_tokens: list[FunctionToken] = default_field([])
+    current_function_token: FunctionToken | None = None
 
     used_registers: list[str] = default_field([])
 

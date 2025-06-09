@@ -4,7 +4,6 @@ A Mid Level complexity language for developing [g1](https://github.com/7Limes/g1
 
 Main Caveats:
 - No stack frames (no recursion allowed)
-- No importing other files (yet)
 - While loops only
 
 
@@ -18,6 +17,8 @@ The `start` function is optional, but `tick` is not.
 Here's the basic layout of a program:
 ```
 [meta variables]
+
+[includes]
 
 [file loading]
 
@@ -48,6 +49,26 @@ Here's a list of valid meta variables:
 - `#height` - The height of the window (default: 100)
 - `#tickrate` - The rate at which `tick` will be called. (default: 60)
 - `#memory` - The amount of additional memory to allocate for the program. (default: 0)
+
+
+### Including
+
+Functions and variables from other files can be included using the `include` directive:
+```
+// === main.mlg1 ===
+include "math"
+
+fn start() {
+  let result = do_math(1, 2, 3)
+  print(result)  // 7
+}
+
+// === math.mlg1 ===
+fn do_math(a, b, c) {
+  return a + b * c
+}
+
+```
 
 
 ### File Loading
