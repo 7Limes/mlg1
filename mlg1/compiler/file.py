@@ -1,5 +1,5 @@
-from PIL import Image
 from io import BytesIO
+from PIL import Image
 
 
 def img_to_simg(img: Image.Image) -> list[int]:

@@ -1,6 +1,8 @@
 from antlr4.tree.Tree import TerminalNodeImpl, TerminalNode
 from mlg1.parser.mlg1Parser import mlg1Parser
-from mlg1.compiler.constants import *
+from mlg1.compiler.constants import \
+    BUILTIN_FUNCTIONS, BUILTIN_FUNCTION_ARGUMENT_COUNTS, \
+    ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
 from mlg1.compiler.util import is_integer, error_ctx
 from mlg1.compiler.data import CompilerState
 
@@ -57,7 +59,7 @@ class FunctionCallHandler:
     @staticmethod
     def from_token(compiler_state: CompilerState, token: mlg1Parser.FunctionCallContext):
         function_name = token.NAME().getText()
-        argument_list_token = token.argumentList()
+        argument_list_token = token.expressionList()
         function_args = []
         if argument_list_token is not None:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
@@ -157,15 +159,14 @@ def convert_to_rpn(tokens: list) -> list:
             return 4
         if op_text in ['*', '/', '%']:
             return 3
-        elif op_text in ['+', '-']:
+        if op_text in ['+', '-']:
             return 2
         return 1  # default precedence for other operators
 
     
     for token in tokens:
         # primary
-        if isinstance(token, mlg1Parser.PrimaryContext) or \
-           isinstance(token, mlg1Parser.FunctionCallContext):
+        if isinstance(token, (mlg1Parser.PrimaryContext, mlg1Parser.FunctionCallContext)):
             output.append(token)
             
         # operator

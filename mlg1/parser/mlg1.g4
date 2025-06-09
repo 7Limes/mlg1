@@ -1,9 +1,11 @@
 grammar mlg1;
 
-program: metaVariable* loadFile* constantDefinition* function+;
+program: metaVariable* includeFile* loadFile* constantDefinition* function+;
 
 META_VARIABLE_NAME: 'width'|'height'|'memory'|'tickrate';
 metaVariable: '#' META_VARIABLE_NAME INTEGER;
+
+includeFile: '%include' STRING;
 
 loadFile: '$' NAME STRING;
 
@@ -29,9 +31,8 @@ statement
 variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
 assignment: NAME '=' expression;
 
-arrayDeclaration: VARIABLE_KEYWORD NAME '[' arraySize ']' ('=' '[' arrayInitializerList? ']')?;
+arrayDeclaration: VARIABLE_KEYWORD NAME '[' arraySize ']' ('=' '[' expressionList? ']')?;
 arraySize: INTEGER | NAME;
-arrayInitializerList: expression (',' expression)*;
 
 ifStatement: 'if' expression block ('else' elseStatement)?;
 
@@ -41,9 +42,8 @@ whileLoop: 'while' expression block;
 
 returnStatement: 'return' expression;
 
-functionCall: NAME '(' argumentList? ')';
-
-argumentList: expression (',' expression)*;
+functionCall: NAME '(' expressionList? ')';
+expressionList: expression (',' expression)*;
 
 expression
     : primary
