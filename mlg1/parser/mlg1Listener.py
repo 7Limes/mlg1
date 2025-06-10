@@ -179,6 +179,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#continueStatement.
+    def enterContinueStatement(self, ctx:mlg1Parser.ContinueStatementContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#continueStatement.
+    def exitContinueStatement(self, ctx:mlg1Parser.ContinueStatementContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#functionCall.
     def enterFunctionCall(self, ctx:mlg1Parser.FunctionCallContext):
         pass

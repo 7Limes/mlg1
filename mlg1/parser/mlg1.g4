@@ -25,6 +25,7 @@ statement
     | functionCall
     | returnStatement
     | breakStatement
+    | continueStatement
     | ifStatement
     | whileLoop
     ;
@@ -44,6 +45,7 @@ whileLoop: 'while' expression block;
 returnStatement: 'return' expression;
 
 breakStatement: 'break';
+continueStatement: 'continue';
 
 functionCall: NAME '(' expressionList? ')';
 expressionList: expression (',' expression)*;

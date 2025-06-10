@@ -292,6 +292,15 @@ class CodegenListener(BaseListener):
         
         jump_instruction = f'jmp {jump_label} 1'
         self.code_writer.add_line(jump_instruction)
+    
+    def enterContinueStatement(self, ctx: mlg1Parser.ContinueStatementContext):
+        jump_instruction: str = None
+        for block_end_item in reversed(self.block_end_stack):
+            if isinstance(block_end_item, list):
+                jump_instruction = block_end_item[1]  # grab the loop start jump instruction
+                break
+        
+        self.code_writer.add_line(jump_instruction)
 
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
         self._add_source_code_comment(ctx)
