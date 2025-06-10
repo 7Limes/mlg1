@@ -3,9 +3,7 @@
 ## Features
 - Fix else if jank in parser
 - Make meta vars, includes, and constants sections order-independent
-- check for too many or too few arguments in function call
 - more logical operators (>, <=, >=)
-- break statement
 - inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register

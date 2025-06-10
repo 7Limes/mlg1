@@ -283,6 +283,16 @@ class CodegenListener(BaseListener):
         self.code_writer.add_lines(expression_code)
         self.code_writer.add_line('jmp return 1')
     
+    def enterBreakStatement(self, ctx: mlg1Parser.BreakStatementContext):
+        jump_label: str = None
+        for block_end_item in reversed(self.block_end_stack):
+            if isinstance(block_end_item, list):
+                jump_label = block_end_item[0][:-1]  # grab the loop end label
+                break
+        
+        jump_instruction = f'jmp {jump_label} 1'
+        self.code_writer.add_line(jump_instruction)
+
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
         self._add_source_code_comment(ctx)
 

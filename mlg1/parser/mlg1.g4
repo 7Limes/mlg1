@@ -24,6 +24,7 @@ statement
     | arrayDeclaration
     | functionCall
     | returnStatement
+    | breakStatement
     | ifStatement
     | whileLoop
     ;
@@ -41,6 +42,8 @@ elseStatement: block | ifStatement;
 whileLoop: 'while' expression block;
 
 returnStatement: 'return' expression;
+
+breakStatement: 'break';
 
 functionCall: NAME '(' expressionList? ')';
 expressionList: expression (',' expression)*;

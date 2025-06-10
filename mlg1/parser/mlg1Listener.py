@@ -170,6 +170,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#breakStatement.
+    def enterBreakStatement(self, ctx:mlg1Parser.BreakStatementContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#breakStatement.
+    def exitBreakStatement(self, ctx:mlg1Parser.BreakStatementContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#functionCall.
     def enterFunctionCall(self, ctx:mlg1Parser.FunctionCallContext):
         pass
