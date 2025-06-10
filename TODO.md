@@ -2,7 +2,6 @@
 
 ## Features
 - Fix else if jank in parser
-- Make meta vars, includes, and constants sections order-independent
 - more logical operators (>, <=, >=)
 - inline functions?
 - better function call register use

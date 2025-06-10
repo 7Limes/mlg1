@@ -89,6 +89,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#headerStatement.
+    def enterHeaderStatement(self, ctx:mlg1Parser.HeaderStatementContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#headerStatement.
+    def exitHeaderStatement(self, ctx:mlg1Parser.HeaderStatementContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#statement.
     def enterStatement(self, ctx:mlg1Parser.StatementContext):
         pass

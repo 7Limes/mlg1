@@ -1,6 +1,6 @@
 grammar mlg1;
 
-program: metaVariable* includeFile* loadFile* constantDefinition* function*;
+program: headerStatement* function*;
 
 META_VARIABLE_NAME: 'width'|'height'|'memory'|'tickrate';
 metaVariable: '#' META_VARIABLE_NAME INTEGER;
@@ -17,6 +17,13 @@ function: 'fn' NAME '(' parameterList? ')' block;
 parameterList: NAME (',' NAME)*;
 
 block: '{' statement* '}';
+
+headerStatement
+    : metaVariable
+    | includeFile
+    | loadFile
+    | constantDefinition
+    ;
 
 statement
     : variableDeclaration
