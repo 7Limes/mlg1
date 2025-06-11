@@ -302,26 +302,39 @@ class CodegenListener(BaseListener):
         
         self.code_writer.add_line(jump_instruction)
 
-    def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
-        self._add_source_code_comment(ctx)
-
+    def generateIfStatement(self, ctx, end_label_name: str|None):
         condition_expression_token = ctx.expression()
         condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         self.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
+        
+        skip_label_name = f'{self.function_token.name}_skip_{ctx.start.line}_{ctx.start.column}'
+        self.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
 
-        else_token = ctx.elseStatement()
-        if else_token is None:
-            skip_label_name = f'{self.function_token.name}_skip_{ctx.start.line}_{ctx.start.column}'
-            self.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
+        if end_label_name is None:
             self.block_end_stack.append(skip_label_name + ':')
         else:
-            else_label_name = f'{self.function_token.name}_else_{ctx.start.line}_{ctx.start.column}'
+            self.block_end_stack.extend([end_label_name + ':', [skip_label_name + ':', f'jmp {end_label_name} 1']])
+
+    def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
+        self._add_source_code_comment(ctx)
+        
+        end_label_name = None
+        if ctx.elseIfClause() or ctx.elseClause():
             end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
-            self.code_writer.add_line(f'jmp {else_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
-            self.block_end_stack.extend([end_label_name + ':', [else_label_name + ':', f'jmp {end_label_name} 1']])
+        self.generateIfStatement(ctx, end_label_name)
     
+    def enterElseIfClause(self, ctx: mlg1Parser.ElseIfClauseContext):
+        self._add_source_code_comment(ctx)
+
+        parent = ctx.parentCtx
+        end_label_name = f'{self.function_token.name}_end_{parent.start.line}_{parent.start.column}'
+        self.generateIfStatement(ctx, end_label_name)
+
+    def enterElseClause(self, ctx: mlg1Parser.ElseClauseContext):
+        self._add_source_code_comment(ctx)
+
     def enterWhileLoop(self, ctx: mlg1Parser.WhileLoopContext):
         self._add_source_code_comment(ctx)
 
@@ -341,7 +354,8 @@ class CodegenListener(BaseListener):
     
     def exitBlock(self, ctx: mlg1Parser.BlockContext):
         self.code_writer.indent_level -= 1
-        if isinstance(ctx.parentCtx, (mlg1Parser.IfStatementContext, mlg1Parser.ElseStatementContext, mlg1Parser.WhileLoopContext)):
+        if isinstance(ctx.parentCtx, (mlg1Parser.IfStatementContext, mlg1Parser.ElseClauseContext, 
+                                      mlg1Parser.ElseIfClauseContext, mlg1Parser.WhileLoopContext)):
             popped = self.block_end_stack.pop()
             if isinstance(popped, list):
                 self.code_writer.add_lines(list(reversed(popped)))

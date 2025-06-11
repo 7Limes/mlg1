@@ -152,12 +152,21 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by mlg1Parser#elseStatement.
-    def enterElseStatement(self, ctx:mlg1Parser.ElseStatementContext):
+    # Enter a parse tree produced by mlg1Parser#elseIfClause.
+    def enterElseIfClause(self, ctx:mlg1Parser.ElseIfClauseContext):
         pass
 
-    # Exit a parse tree produced by mlg1Parser#elseStatement.
-    def exitElseStatement(self, ctx:mlg1Parser.ElseStatementContext):
+    # Exit a parse tree produced by mlg1Parser#elseIfClause.
+    def exitElseIfClause(self, ctx:mlg1Parser.ElseIfClauseContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#elseClause.
+    def enterElseClause(self, ctx:mlg1Parser.ElseClauseContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#elseClause.
+    def exitElseClause(self, ctx:mlg1Parser.ElseClauseContext):
         pass
 
 

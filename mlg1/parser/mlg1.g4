@@ -43,9 +43,11 @@ assignment: NAME '=' expression;
 arrayDeclaration: VARIABLE_KEYWORD NAME '[' arraySize ']' ('=' '[' expressionList? ']')?;
 arraySize: INTEGER | NAME;
 
-ifStatement: 'if' expression block ('else' elseStatement)?;
+ifStatement: 'if' expression block elseIfClause* elseClause?;
 
-elseStatement: block | ifStatement;
+elseIfClause: 'else' 'if' expression block;
+
+elseClause: 'else' block;
 
 whileLoop: 'while' expression block;
 

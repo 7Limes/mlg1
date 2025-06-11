@@ -1,7 +1,7 @@
 # TODO
 
 ## Features
-- Fix else if jank in parser
+- Check if file exists for $ file loading
 - more logical operators (>, <=, >=)
 - inline functions?
 - better function call register use
