@@ -302,7 +302,7 @@ class CodegenListener(BaseListener):
         
         self.code_writer.add_line(jump_instruction)
 
-    def generateIfStatement(self, ctx, end_label_name: str|None):
+    def generateIfStatement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
         condition_expression_token = ctx.expression()
         condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
@@ -311,26 +311,33 @@ class CodegenListener(BaseListener):
         
         skip_label_name = f'{self.function_token.name}_skip_{ctx.start.line}_{ctx.start.column}'
         self.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
-
-        if end_label_name is None:
-            self.block_end_stack.append(skip_label_name + ':')
+        
+        end_label_name = f'{self.function_token.name}_end_{parent_if_ctx.start.line}_{parent_if_ctx.start.column}'
+        
+        if parent_if_ctx.elseIfClause() or parent_if_ctx.elseClause():
+            if ctx == parent_if_ctx:
+                self.block_end_stack.append(end_label_name + ':')
+            
+            # If this is the last else if without a final else
+            if parent_if_ctx.elseClause() is None and \
+                    isinstance(ctx, mlg1Parser.ElseIfClauseContext) and \
+                    ctx == parent_if_ctx.elseIfClause()[-1]:
+                self.block_end_stack[-1] = [end_label_name + ':', skip_label_name + ':', f'jmp {end_label_name} 1']
+            else:
+                self.block_end_stack.append([skip_label_name + ':', f'jmp {end_label_name} 1'])
         else:
-            self.block_end_stack.extend([end_label_name + ':', [skip_label_name + ':', f'jmp {end_label_name} 1']])
+            self.block_end_stack.append(skip_label_name + ':')
 
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
         self._add_source_code_comment(ctx)
         
-        end_label_name = None
-        if ctx.elseIfClause() or ctx.elseClause():
-            end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
-        self.generateIfStatement(ctx, end_label_name)
+        self.generateIfStatement(ctx, ctx)
     
     def enterElseIfClause(self, ctx: mlg1Parser.ElseIfClauseContext):
         self._add_source_code_comment(ctx)
 
-        parent = ctx.parentCtx
-        end_label_name = f'{self.function_token.name}_end_{parent.start.line}_{parent.start.column}'
-        self.generateIfStatement(ctx, end_label_name)
+        parent: mlg1Parser.IfStatementContext = ctx.parentCtx
+        self.generateIfStatement(ctx, parent)
 
     def enterElseClause(self, ctx: mlg1Parser.ElseClauseContext):
         self._add_source_code_comment(ctx)
