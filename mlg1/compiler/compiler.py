@@ -284,6 +284,8 @@ class CodegenListener(BaseListener):
         self.code_writer.add_line('jmp return 1')
     
     def enterBreakStatement(self, ctx: mlg1Parser.BreakStatementContext):
+        self._add_source_code_comment(ctx)
+
         jump_label: str = None
         for block_end_item in reversed(self.block_end_stack):
             if isinstance(block_end_item, list):
@@ -294,6 +296,8 @@ class CodegenListener(BaseListener):
         self.code_writer.add_line(jump_instruction)
     
     def enterContinueStatement(self, ctx: mlg1Parser.ContinueStatementContext):
+        self._add_source_code_comment(ctx)
+        
         jump_instruction: str = None
         for block_end_item in reversed(self.block_end_stack):
             if isinstance(block_end_item, list):
