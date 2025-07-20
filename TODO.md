@@ -2,7 +2,6 @@
 
 ## Features
 - Check if file exists for $ file loading
-- more logical operators (>, <=, >=)
 - inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register

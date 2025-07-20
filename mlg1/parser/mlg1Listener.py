@@ -179,6 +179,15 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#forLoop.
+    def enterForLoop(self, ctx:mlg1Parser.ForLoopContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#forLoop.
+    def exitForLoop(self, ctx:mlg1Parser.ForLoopContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#returnStatement.
     def enterReturnStatement(self, ctx:mlg1Parser.ReturnStatementContext):
         pass

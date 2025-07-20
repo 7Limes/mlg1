@@ -35,6 +35,7 @@ statement
     | continueStatement
     | ifStatement
     | whileLoop
+    | forLoop
     ;
 
 variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
@@ -50,6 +51,8 @@ elseIfClause: 'else' 'if' expression block;
 elseClause: 'else' block;
 
 whileLoop: 'while' expression block;
+
+forLoop: 'for' '(' (variableDeclaration | assignment)? ';' expression ';' assignment ')' block;
 
 returnStatement: 'return' expression;
 

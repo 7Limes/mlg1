@@ -8,6 +8,7 @@ https://github.com/7Limes
 import sys
 import os
 import argparse
+from collections import deque
 from result import Result, Ok, Err
 from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
@@ -178,6 +179,11 @@ class CodegenListener(BaseListener):
         self.function_token: FunctionToken = function_token
 
         self.block_end_stack: list[str] = []
+
+        self.break_label_stack: deque[str] = deque()
+        self.continue_label_stack: deque[str] = deque()
+        
+        self.for_loop_end_stack: deque[tuple[str, mlg1Parser.AssignmentContext]] = []
     
     
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
@@ -226,6 +232,9 @@ class CodegenListener(BaseListener):
             self.code_writer.add_line(f'{whitespace}jmp return 1')
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
+        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
+            return
+        
         self._add_source_code_comment(ctx)
 
         var_name = ctx.NAME().getText()
@@ -241,6 +250,9 @@ class CodegenListener(BaseListener):
             self.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
+        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
+            return
+        
         self._add_source_code_comment(ctx)
 
         expression_token = ctx.expression()
@@ -286,25 +298,14 @@ class CodegenListener(BaseListener):
     def enterBreakStatement(self, ctx: mlg1Parser.BreakStatementContext):
         self._add_source_code_comment(ctx)
 
-        jump_label: str = None
-        for block_end_item in reversed(self.block_end_stack):
-            if isinstance(block_end_item, list):
-                jump_label = block_end_item[0][:-1]  # grab the loop end label
-                break
-        
-        jump_instruction = f'jmp {jump_label} 1'
-        self.code_writer.add_line(jump_instruction)
+        break_label = self.break_label_stack[0]
+        self.code_writer.add_line(f'jmp {break_label} 1')
     
     def enterContinueStatement(self, ctx: mlg1Parser.ContinueStatementContext):
         self._add_source_code_comment(ctx)
-        
-        jump_instruction: str = None
-        for block_end_item in reversed(self.block_end_stack):
-            if isinstance(block_end_item, list):
-                jump_instruction = block_end_item[1]  # grab the loop start jump instruction
-                break
-        
-        self.code_writer.add_line(jump_instruction)
+
+        continue_label = self.continue_label_stack[0]
+        self.code_writer.add_line(f'jmp {continue_label} 1')
 
     def generateIfStatement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
         condition_expression_token = ctx.expression()
@@ -351,22 +352,76 @@ class CodegenListener(BaseListener):
 
         loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
-        condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
+        condition_token = ctx.expression()
+        condition_expression = ExpressionHandler(self.compiler_state, condition_token, self.function_token.name)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
+        
         self.code_writer.add_line(loop_label_name + ':')
         self.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
         self.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
         self.block_end_stack.append([loop_end_label_name + ':', f'jmp {loop_label_name} 1'])
+
+        self.break_label_stack.append(loop_end_label_name)
+        self.continue_label_stack.append(loop_label_name)
+    
+    def enterForLoop(self, ctx: mlg1Parser.ForLoopContext):
+        self._add_source_code_comment(ctx)
+
+        var_declaration: mlg1Parser.VariableDeclarationContext = ctx.variableDeclaration()
+        assignment: list[mlg1Parser.AssignmentContext] = ctx.assignment()
+        if var_declaration is not None: 
+            parent = var_declaration.parentCtx
+            var_declaration.parentCtx = None
+            self.enterVariableDeclaration(var_declaration)
+            var_declaration.parentCtx = parent
+            increment_token = assignment[0]
+        elif len(assignment) == 2:
+            initial_assignment_token = assignment[0]
+            parent = initial_assignment_token.parentCtx
+            initial_assignment_token.parentCtx = None
+            self.enterAssignment(initial_assignment_token)
+            initial_assignment_token.parentCtx = parent
+            increment_token = assignment[1]
+        else:
+            increment_token = assignment[0]
+
+        condition_token = ctx.expression()
+        condition_expression = ExpressionHandler(self.compiler_state, condition_token, self.function_token.name)
+        expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
+        loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
+        loop_continue_label_name = f'{self.function_token.name}_continue_{ctx.start.line}_{ctx.start.column}'
+        loop_end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
+        
+        self.code_writer.add_line(loop_label_name + ':')
+        self.code_writer.add_lines(expression_code)
+        self._add_conditional_inversion()
+        self.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
+        self.block_end_stack.append([loop_end_label_name + ':', f'jmp {loop_label_name} 1'])
+        self.for_loop_end_stack.append((loop_continue_label_name + ':', increment_token))
+
+        self.break_label_stack.append(loop_end_label_name)
+        self.continue_label_stack.append(loop_continue_label_name)
     
     def enterBlock(self, ctx: mlg1Parser.BlockContext):
         self.code_writer.indent_level += 1
     
     def exitBlock(self, ctx: mlg1Parser.BlockContext):
+        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
+            loop_continue_label, increment_token = self.for_loop_end_stack.pop()
+            self.code_writer.add_line(loop_continue_label)
+            increment_token.parentCtx = None
+            self.enterAssignment(increment_token)
+        
+        if isinstance(ctx.parentCtx, (mlg1Parser.WhileLoopContext, mlg1Parser.ForLoopContext)):
+            self.break_label_stack.pop()
+            self.continue_label_stack.pop()
+        
         self.code_writer.indent_level -= 1
+
         if isinstance(ctx.parentCtx, (mlg1Parser.IfStatementContext, mlg1Parser.ElseClauseContext, 
-                                      mlg1Parser.ElseIfClauseContext, mlg1Parser.WhileLoopContext)):
+                                      mlg1Parser.ElseIfClauseContext, mlg1Parser.WhileLoopContext, 
+                                      mlg1Parser.ForLoopContext)):
             popped = self.block_end_stack.pop()
             if isinstance(popped, list):
                 self.code_writer.add_lines(list(reversed(popped)))

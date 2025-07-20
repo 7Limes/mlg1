@@ -4,7 +4,6 @@ A Mid Level complexity language for developing [g1](https://github.com/7Limes/g1
 
 Main Caveats:
 - No stack frames (no recursion allowed)
-- While loops only
 
 
 ## Documentation
@@ -98,4 +97,6 @@ The compiler will output a `.g1d` file alongside the code file that can be used 
 - `set(address, value)`
   - Set a value in open memory.
   - Requires that `#memory` is set to something greater than `0` or a file is loaded into memory.
+- `getpixel(x, y)`
+  - Returns the color of the pixel at the given x, y coordinates.
 
