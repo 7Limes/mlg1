@@ -36,6 +36,20 @@ OPERATORS = {
         'function': lambda a, b: int(a<b),
         'instruction': 'less {dest} {a} {b}'
     },
+    '>': {
+        'function': lambda a, b: int(a>b),
+        'instruction': 'less {dest} {b} {a}'
+    },
+    '<=': {
+        'function': lambda a, b: int(a<=b),
+        'instruction': 'less {dest} {b} {a}',
+        'negate': True
+    },
+    '>=': {
+        'function': lambda a, b: int(a>=b),
+        'instruction': 'less {dest} {a} {b}',
+        'negate': True
+    },
     '!': {
         'function': lambda a: int(not a),
         'instruction': 'not {dest} {a}',
@@ -293,8 +307,10 @@ class ExpressionHandler:
             if value not in OPERATORS:
                 stack.append(value_to_string(value))
             else:
-                instruction_template: str = OPERATORS[value]['instruction']
-                if OPERATORS[value].get('unary'):
+                operator_data = OPERATORS[value]
+                instruction_template: str = operator_data['instruction']
+                negate_instruction = None
+                if operator_data.get('unary'):
                     a = stack.pop()
                     register = get_register(i, a, None)
                     instruction = instruction_template.format(dest=register, a=a)
@@ -303,7 +319,13 @@ class ExpressionHandler:
                     a = stack.pop()
                     register = get_register(i, a, b)
                     instruction = instruction_template.format(dest=register, a=a, b=b)
+                    if 'negate' in operator_data:
+                        negate_instruction = f'not {register} ${register}'
+                
                 generated_lines.append(instruction)
+                if negate_instruction:
+                    generated_lines.append(negate_instruction)
+                
                 stack.append(f'${register}')
         
         if not generated_lines:

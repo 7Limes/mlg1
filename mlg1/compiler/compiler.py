@@ -230,14 +230,14 @@ class CodegenListener(BaseListener):
 
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+        var_address = self._get_var_address(var_name, is_global)
         if ctx.STRING():
-            var_address = self._get_var_address(var_name, is_global)
             string_address = self.compiler_state.string_vars[var_address]
             self.code_writer.add_line(f'mov {var_address} {string_address}')
         else:
             expression_token = ctx.expression()
             expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
-            expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
+            expression_code = expression.generate_code(var_address)
             self.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
