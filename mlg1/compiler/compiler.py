@@ -231,11 +231,12 @@ class CodegenListener(BaseListener):
             whitespace = " "*self.compiler_state.compiler_flags.indent_size
             self.code_writer.add_line(f'{whitespace}jmp return 1')
     
-    def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
+    def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext, add_comment: bool=True):
         if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
             return
         
-        self._add_source_code_comment(ctx)
+        if add_comment:
+            self._add_source_code_comment(ctx)
 
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
@@ -249,11 +250,12 @@ class CodegenListener(BaseListener):
             expression_code = expression.generate_code(var_address)
             self.code_writer.add_lines(expression_code)
     
-    def enterAssignment(self, ctx: mlg1Parser.AssignmentContext):
+    def enterAssignment(self, ctx: mlg1Parser.AssignmentContext, add_comment: bool=True):
         if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
             return
         
-        self._add_source_code_comment(ctx)
+        if add_comment:
+            self._add_source_code_comment(ctx)
 
         expression_token = ctx.expression()
         expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
@@ -370,17 +372,18 @@ class CodegenListener(BaseListener):
 
         var_declaration: mlg1Parser.VariableDeclarationContext = ctx.variableDeclaration()
         assignment: list[mlg1Parser.AssignmentContext] = ctx.assignment()
+
         if var_declaration is not None: 
             parent = var_declaration.parentCtx
             var_declaration.parentCtx = None
-            self.enterVariableDeclaration(var_declaration)
+            self.enterVariableDeclaration(var_declaration, add_comment=False)
             var_declaration.parentCtx = parent
             increment_token = assignment[0]
         elif len(assignment) == 2:
             initial_assignment_token = assignment[0]
             parent = initial_assignment_token.parentCtx
             initial_assignment_token.parentCtx = None
-            self.enterAssignment(initial_assignment_token)
+            self.enterAssignment(initial_assignment_token, add_comment=False)
             initial_assignment_token.parentCtx = parent
             increment_token = assignment[1]
         else:
@@ -411,7 +414,7 @@ class CodegenListener(BaseListener):
             loop_continue_label, increment_token = self.for_loop_end_stack.pop()
             self.code_writer.add_line(loop_continue_label)
             increment_token.parentCtx = None
-            self.enterAssignment(increment_token)
+            self.enterAssignment(increment_token, add_comment=False)
         
         if isinstance(ctx.parentCtx, (mlg1Parser.WhileLoopContext, mlg1Parser.ForLoopContext)):
             self.break_label_stack.pop()
