@@ -69,6 +69,7 @@ class FunctionCallHandler:
         self.function_name = function_name
         self.arguments = arguments
         self.token = token
+        self.is_builtin = function_name in BUILTIN_FUNCTIONS
 
     @staticmethod
     def from_token(compiler_state: CompilerState, token: mlg1Parser.FunctionCallContext):
@@ -124,10 +125,10 @@ class FunctionCallHandler:
     def generate_code(self, parent_function_name: str, builtin_return_register: int) -> list[str]:
         name = self.function_name
 
-        if name not in BUILTIN_FUNCTIONS and name not in self.compiler_state.function_namespaces:
+        if not self.is_builtin and name not in self.compiler_state.function_namespaces:
             error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Unrecognized function "{name}"')
 
-        if name in BUILTIN_FUNCTIONS:
+        if self.is_builtin:
             amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[name]
         else:
             amount_args = len(self.compiler_state.function_namespaces[name]['parameters'])
@@ -135,7 +136,7 @@ class FunctionCallHandler:
         if amount_passed_args != amount_args:
             error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
         
-        if self.function_name in BUILTIN_FUNCTIONS:
+        if self.is_builtin:
             return self.generate_builtin(parent_function_name, builtin_return_register)
         return self.generate_regular(parent_function_name)
 
@@ -277,10 +278,13 @@ class ExpressionHandler:
     def generate_code(self, destination: int) -> list[str]:
         def value_to_string(value: FunctionCallHandler|str) -> str:
             if isinstance(value, FunctionCallHandler):  # value is a function call
-                return_register = int(self.compiler_state.get_first_unused_register()[1:])
+                if value.is_builtin:
+                    return_register = destination
+                else:
+                    return_register = int(self.compiler_state.get_first_unused_register()[1:])
                 function_call_code = value.generate_code(self.parent_function_name, return_register)
                 generated_lines.extend(function_call_code)
-                if value.function_name not in BUILTIN_FUNCTIONS:
+                if not value.is_builtin:
                     generated_lines.append(f'mov {return_register} ${RETURN_REGISTER_ADDRESS}')
                 return f'${return_register}'
 
@@ -330,7 +334,11 @@ class ExpressionHandler:
         
         if not generated_lines:
             return [f'mov {destination} {stack[0]}']
-        if self.expression_values[-1] not in OPERATORS:
+        
+        # Omit final mov if the expression consists solely of a builtin function call
+        last_value = self.expression_values[-1]
+        if last_value not in OPERATORS and not \
+            isinstance(last_value, FunctionCallHandler) and not last_value.is_builtin:
             generated_lines.append(f'mov {destination} {stack[0]}')
         return generated_lines
 
