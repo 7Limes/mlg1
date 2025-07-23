@@ -178,7 +178,7 @@ class CodegenListener(BaseListener):
 
         self.function_token: FunctionToken = function_token
 
-        self.block_end_stack: list[str] = []
+        self.block_end_stack: deque[str] = deque()
 
         self.break_label_stack: deque[str] = deque()
         self.continue_label_stack: deque[str] = deque()
@@ -300,13 +300,13 @@ class CodegenListener(BaseListener):
     def enterBreakStatement(self, ctx: mlg1Parser.BreakStatementContext):
         self._add_source_code_comment(ctx)
 
-        break_label = self.break_label_stack[0]
+        break_label = self.break_label_stack[-1]
         self.code_writer.add_line(f'jmp {break_label} 1')
     
     def enterContinueStatement(self, ctx: mlg1Parser.ContinueStatementContext):
         self._add_source_code_comment(ctx)
 
-        continue_label = self.continue_label_stack[0]
+        continue_label = self.continue_label_stack[-1]
         self.code_writer.add_line(f'jmp {continue_label} 1')
 
     def generateIfStatement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
