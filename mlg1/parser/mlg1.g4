@@ -9,8 +9,7 @@ includeFile: 'include' STRING;
 
 loadFile: '$' NAME STRING;
 
-constantDefinition: 'define' NAME signedInteger;
-signedInteger: '-'? INTEGER;
+constantDefinition: 'define' NAME expression;
     
 function: 'fn' NAME '(' parameterList? ')' block;
 
@@ -41,8 +40,7 @@ statement
 variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
 assignment: NAME '=' expression;
 
-arrayDeclaration: VARIABLE_KEYWORD NAME '[' arraySize ']' ('=' '[' expressionList? ']')?;
-arraySize: INTEGER | NAME;
+arrayDeclaration: VARIABLE_KEYWORD NAME '[' expression ']' ('=' '[' expressionList? ']')?;
 
 ifStatement: 'if' expression block elseIfClause* elseClause?;
 

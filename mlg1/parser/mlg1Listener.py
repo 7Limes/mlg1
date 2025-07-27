@@ -53,15 +53,6 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by mlg1Parser#signedInteger.
-    def enterSignedInteger(self, ctx:mlg1Parser.SignedIntegerContext):
-        pass
-
-    # Exit a parse tree produced by mlg1Parser#signedInteger.
-    def exitSignedInteger(self, ctx:mlg1Parser.SignedIntegerContext):
-        pass
-
-
     # Enter a parse tree produced by mlg1Parser#function.
     def enterFunction(self, ctx:mlg1Parser.FunctionContext):
         pass
@@ -131,15 +122,6 @@ class mlg1Listener(ParseTreeListener):
 
     # Exit a parse tree produced by mlg1Parser#arrayDeclaration.
     def exitArrayDeclaration(self, ctx:mlg1Parser.ArrayDeclarationContext):
-        pass
-
-
-    # Enter a parse tree produced by mlg1Parser#arraySize.
-    def enterArraySize(self, ctx:mlg1Parser.ArraySizeContext):
-        pass
-
-    # Exit a parse tree produced by mlg1Parser#arraySize.
-    def exitArraySize(self, ctx:mlg1Parser.ArraySizeContext):
         pass
 
 

@@ -1,3 +1,4 @@
+from collections import deque
 from antlr4.tree.Tree import TerminalNodeImpl, TerminalNode
 from mlg1.parser.mlg1Parser import mlg1Parser
 from mlg1.compiler.constants import \
@@ -247,31 +248,30 @@ class ExpressionHandler:
             error_ctx(self.ctx, self.compiler_state.current_function_token.source_lines, 'RPN expression has leftover values.')
     
     def _reduce(self):
-        stack = []
-
-        def pop_parse() -> str:
-            value = stack.pop()
-            if not isinstance(value, str) or is_integer(value):
-                return value
-            const_value = self.compiler_state.constant_namespace.get(value)
-            return str(const_value) if const_value is not None else value
+        stack = deque()
 
         for value in self.expression_values:
             if value not in OPERATORS:
-                stack.append(value)
+                const_value = self.compiler_state.constant_namespace.get(value)
+                if const_value is None:
+                    added_value = value
+                else:
+                    added_value = str(const_value)
+                stack.append(added_value)
             else:
-                b = pop_parse()
+                b = stack.pop()
                 if OPERATORS[value].get('unary'):
                     if isinstance(b, str) and is_integer(b):
                         stack.append(str(OPERATORS[value]['function'](int(b))))
                     else:
                         stack.extend([b, value])
                 else:
-                    a = pop_parse()
+                    a = stack.pop()
                     if isinstance(a, str) and is_integer(a) and isinstance(b, str) and is_integer(b):
                         stack.append(str(OPERATORS[value]['function'](int(a), int(b))))
                     else:
                         stack.extend([a, b, value])
+        
         self.expression_values = stack
     
 
@@ -306,7 +306,7 @@ class ExpressionHandler:
             return int(self.compiler_state.get_arithmetic_register(a, b)[1:])
 
         generated_lines = []
-        stack = []
+        stack = deque()
         for i, value in enumerate(self.expression_values):
             if value not in OPERATORS:
                 stack.append(value_to_string(value))
@@ -344,27 +344,41 @@ class ExpressionHandler:
 
 
 def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContext, parent_function_name: str) -> ExpressionHandler | FunctionCallHandler | str:
-    first_child = None
     if isinstance(token, TerminalNode):
         return None
+    
+    first_child = None
     if token.children:
         first_child = token.children[0]
+
     if isinstance(first_child, mlg1Parser.ExpressionContext):  # Expression
         return ExpressionHandler(compiler_state, first_child, parent_function_name)
+    
     if isinstance(first_child, mlg1Parser.FunctionCallContext):  # Function call
         return FunctionCallHandler.from_token(compiler_state, first_child)
+    
     if isinstance(token, mlg1Parser.PrimaryContext):
         name = token.NAME()
-        function_locals = compiler_state.function_namespaces[parent_function_name]['locals']
+        function_namespace = compiler_state.function_namespaces.get(parent_function_name)
+        if function_namespace is None:
+            function_locals = {}
+        else:
+            function_locals = function_namespace['locals']
+        
         if name is not None and name.getText() not in function_locals \
             and name.getText() not in compiler_state.global_namespace \
             and name.getText() not in compiler_state.constant_namespace:
-            error_ctx(token, compiler_state.current_function_token.source_lines, f'Tried to reference undefined variable "{name}"')
+            error_source_lines = compiler_state.current_function_token.source_lines
+            error_ctx(token, error_source_lines, f'Tried to reference undefined variable "{name}"')
+        
         return token.getText()
+
     if isinstance(token, mlg1Parser.OperatorContext):  # Operator
         return token.getText()
+    
     if isinstance(token, mlg1Parser.UnaryOperatorContext):
         if token.getText() == '-':  # Unary subtraction operator
             return r'\-'
         return token.getText()
+
     return None

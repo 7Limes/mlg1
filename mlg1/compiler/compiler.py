@@ -19,7 +19,7 @@ from mlg1.compiler.constants import \
     RESERVED_NAMES, BUILTIN_FUNCTIONS, META_VAR_DEFAULTS, \
     ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, CALL_STACK_DATA_ADDRESS, RETURN_REGISTER_ADDRESS, \
     DEFAULT_INDENT_SIZE, HEAP_VARIABLE_NAME, get_return_code
-from mlg1.compiler.util import error, preprocess_error, COLOR_ERROR, CodeWriter
+from mlg1.compiler.util import error, preprocess_error, COLOR_ERROR, CodeWriter, is_integer
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler
 from mlg1.compiler.data import CompilerState, CompilerFlags, FunctionToken
 from mlg1.compiler.file import get_parsed_file_size
@@ -72,6 +72,16 @@ class PreprocessListener(BaseListener):
         else:  # local var
             self.compiler_state.function_namespaces[self.current_function]['locals'][name] = self.compiler_state.current_address
     
+    def _evaluate_constant_expression(self, expression_token: mlg1Parser.ExpressionContext) -> int:
+        """
+        Evaluates an expression consisting solely of integer literals and constants.
+        """
+        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+        expression_values = expression.expression_values
+        if len(expression_values) > 1 or not is_integer(expression_values[0]):
+            self.error(expression_token, 'Expected only integer literals and constants in expression.')
+        return int(expression.expression_values[0])
+
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
         name = ctx.META_VARIABLE_NAME().getText()
         value = int(ctx.INTEGER().getText())
@@ -90,9 +100,9 @@ class PreprocessListener(BaseListener):
         self.compiler_state.data_entries[name] = {'type': 'f', 'path': path[1:-1]}
     
     def enterConstantDefinition(self, ctx: mlg1Parser.ConstantDefinitionContext):
-        name = ctx.NAME().getText()
-        value = int(ctx.signedInteger().getText())
-        self.compiler_state.constant_namespace[name] = value
+        constant_name = ctx.NAME().getText()
+        value = self._evaluate_constant_expression(ctx.expression())
+        self.compiler_state.constant_namespace[constant_name] = value
     
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
         function_name = ctx.NAME().getText()
@@ -143,17 +153,10 @@ class PreprocessListener(BaseListener):
         self.compiler_state.current_address += 1
     
     def enterArrayDeclaration(self, ctx: mlg1Parser.ArrayDeclarationContext):
-        array_size_token: mlg1Parser.ArraySizeContext = ctx.arraySize()
-        if array_size_token.NAME() is not None:  # Defined constant size
-            size_constant_name = array_size_token.NAME().getText()
-            if size_constant_name not in self.compiler_state.constant_namespace:
-                self.error(array_size_token, f'Tried to declare array size with undefined constant "{size_constant_name}".')
-            array_size = self.compiler_state.constant_namespace[size_constant_name]
-        else:  # Integer literal size
-            array_size = int(array_size_token.INTEGER().getText())
-        
+        size_expression_token = ctx.expression()
+        array_size = self._evaluate_constant_expression(size_expression_token)
         if array_size <= 0:
-            self.error(array_size_token, 'Array size must be greater than zero.')
+            self.error(size_expression_token, 'Array size must be greater than zero.')
         
         initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.expressionList()
         if initializer_list_token is not None:
@@ -162,10 +165,11 @@ class PreprocessListener(BaseListener):
                 self.error(initializer_list_token, 'Array initializer length exceeds array size.')
         
         name = ctx.NAME().getText()
-        keyword = ctx.VARIABLE_KEYWORD().getText()
-        self._declare_variable(ctx, name, keyword == 'global')
+        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+        self._declare_variable(ctx, name, is_global)
 
-        # Add `array_size` here to allocate space for the array
+        # Add `array_size` here to allocate space for the array,
+        # Add 1 for the variable that stores the pointer to the array
         self.compiler_state.current_address += array_size + 1
 
 
