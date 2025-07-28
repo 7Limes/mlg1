@@ -107,6 +107,24 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by mlg1Parser#declaredVariablesList.
+    def enterDeclaredVariablesList(self, ctx:mlg1Parser.DeclaredVariablesListContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#declaredVariablesList.
+    def exitDeclaredVariablesList(self, ctx:mlg1Parser.DeclaredVariablesListContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#declaredVariable.
+    def enterDeclaredVariable(self, ctx:mlg1Parser.DeclaredVariableContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#declaredVariable.
+    def exitDeclaredVariable(self, ctx:mlg1Parser.DeclaredVariableContext):
+        pass
+
+
     # Enter a parse tree produced by mlg1Parser#assignment.
     def enterAssignment(self, ctx:mlg1Parser.AssignmentContext):
         pass

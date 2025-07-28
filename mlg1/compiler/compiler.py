@@ -139,18 +139,20 @@ class PreprocessListener(BaseListener):
         self.current_function = None
     
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
-        name = ctx.NAME().getText()
-        keyword = ctx.VARIABLE_KEYWORD().getText()  # either 'let' or 'global'
-        self._declare_variable(ctx, name, keyword == 'global')
+        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+        for declared_var_token in ctx.declaredVariablesList().declaredVariable():
+            name = declared_var_token.NAME().getText()
+            self._declare_variable(ctx, name, is_global)
 
-        if ctx.STRING() is not None:
-            self.compiler_state.data_entries[name] = {
-                'type': 's',
-                'string': ctx.STRING().getText()[1:-1],
-                'var_address': self.compiler_state.current_address
-        }
-        
-        self.compiler_state.current_address += 1
+            string_token = declared_var_token.STRING()
+            if string_token is not None:
+                self.compiler_state.data_entries[name] = {
+                    'type': 's',
+                    'string': string_token.getText()[1:-1],
+                    'var_address': self.compiler_state.current_address
+            }
+            
+            self.compiler_state.current_address += 1
     
     def enterArrayDeclaration(self, ctx: mlg1Parser.ArrayDeclarationContext):
         size_expression_token = ctx.expression()
@@ -242,17 +244,19 @@ class CodegenListener(BaseListener):
         if add_comment:
             self._add_source_code_comment(ctx)
 
-        var_name = ctx.NAME().getText()
+
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
-        var_address = self._get_var_address(var_name, is_global)
-        if ctx.STRING():
-            string_address = self.compiler_state.string_vars[var_address]
-            self.code_writer.add_line(f'mov {var_address} {string_address}')
-        else:
-            expression_token = ctx.expression()
-            expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
-            expression_code = expression.generate_code(var_address)
-            self.code_writer.add_lines(expression_code)
+        for declared_var_token in ctx.declaredVariablesList().declaredVariable():
+            var_name = declared_var_token.NAME().getText()
+            var_address = self._get_var_address(var_name, is_global)
+            if declared_var_token.STRING():
+                string_address = self.compiler_state.string_vars[var_address]
+                self.code_writer.add_line(f'mov {var_address} {string_address}')
+            elif declared_var_token.expression():
+                expression_token = declared_var_token.expression()
+                expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
+                expression_code = expression.generate_code(var_address)
+                self.code_writer.add_lines(expression_code)
     
     def enterAssignment(self, ctx: mlg1Parser.AssignmentContext, add_comment: bool=True):
         if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):

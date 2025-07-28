@@ -1,7 +1,6 @@
 # TODO
 
 ## Features
-- Declare variables without initialization
 - Check if file exists for $ file loading
 - inline functions?
 - better function call register use

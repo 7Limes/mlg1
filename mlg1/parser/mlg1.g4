@@ -37,7 +37,10 @@ statement
     | forLoop
     ;
 
-variableDeclaration: VARIABLE_KEYWORD NAME '=' (expression | STRING);
+variableDeclaration: VARIABLE_KEYWORD declaredVariablesList;
+declaredVariablesList: declaredVariable (',' declaredVariable)*;
+declaredVariable: NAME ('=' (expression | STRING))?;
+
 assignment: NAME '=' expression;
 
 arrayDeclaration: VARIABLE_KEYWORD NAME '[' expression ']' ('=' '[' expressionList? ']')?;
