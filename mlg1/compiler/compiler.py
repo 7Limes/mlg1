@@ -289,7 +289,7 @@ class CodegenListener(BaseListener):
             self._add_source_code_comment(ctx)
 
             function_call = FunctionCallHandler.from_token(self.compiler_state, ctx)
-            function_call_code = function_call.generate_code(self.function_token.name, RETURN_REGISTER_ADDRESS)
+            function_call_code = function_call.generate_code(self.function_token.name, RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS)
             self.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):

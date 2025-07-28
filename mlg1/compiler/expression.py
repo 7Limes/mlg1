@@ -4,7 +4,7 @@ from mlg1.parser.mlg1Parser import mlg1Parser
 from mlg1.compiler.constants import \
     BUILTIN_FUNCTIONS, BUILTIN_FUNCTION_ARGUMENT_COUNTS, \
     ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
-from mlg1.compiler.util import is_integer, error_ctx
+from mlg1.compiler.util import is_integer, error_ctx, is_arithmetic_register
 from mlg1.compiler.data import CompilerState
 
 
@@ -81,22 +81,23 @@ class FunctionCallHandler:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
         return FunctionCallHandler(compiler_state, function_name, function_args, token)
 
-    def generate_builtin(self, parent_function_name: str, return_register: int):
+    def generate_builtin(self, parent_function_name: str, return_register: int, current_register: int):
         generated_lines = []
-        argument_destinations = range(ARITHMETIC_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS+4)
+        argument_destinations = range(current_register, current_register+4)
         builtin_arguments = {
             'return_register': return_register,
             'heap_address': self.compiler_state.heap_address
         }
+
         for i, expression_token, arg_destination in zip(range(len(self.arguments)), self.arguments, argument_destinations):
             expression = ExpressionHandler(self.compiler_state, expression_token, parent_function_name)
             expression_code = expression.generate_code(arg_destination)
-            if expression_code[0].startswith('mov'):
-                builtin_arguments[f'a{i}'] = expression_code[0].split(' ')[-1]  # very hacky but works (dont do this)
+            if expression_code[-1].startswith('mov'):
+                builtin_arguments[f'a{i}'] = expression_code[-1].split(' ')[-1]  # very hacky but works (dont do this)
             else:
                 builtin_arguments[f'a{i}'] = f'${arg_destination}'
-                generated_lines.extend(expression_code)
-
+            generated_lines.extend(expression_code)
+        
         parsed_lines = []
         for line in BUILTIN_FUNCTIONS[self.function_name]:
             line = line.format(**builtin_arguments)
@@ -123,7 +124,7 @@ class FunctionCallHandler:
         generated_lines.extend(final_lines)
         return generated_lines
 
-    def generate_code(self, parent_function_name: str, builtin_return_register: int) -> list[str]:
+    def generate_code(self, parent_function_name: str, builtin_return_register: int, current_register: int) -> list[str]:
         name = self.function_name
 
         if not self.is_builtin and name not in self.compiler_state.function_namespaces:
@@ -138,7 +139,7 @@ class FunctionCallHandler:
             error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
         
         if self.is_builtin:
-            return self.generate_builtin(parent_function_name, builtin_return_register)
+            return self.generate_builtin(parent_function_name, builtin_return_register, current_register)
         return self.generate_regular(parent_function_name)
 
 
@@ -276,13 +277,23 @@ class ExpressionHandler:
     
 
     def generate_code(self, destination: int) -> list[str]:
+        base_register: int = ARITHMETIC_REGISTER_ADDRESS
+        for value in self.expression_values:
+            if isinstance(value, FunctionCallHandler) and not value.is_builtin:
+                index = self.compiler_state.function_base_registers[value.function_name]
+                if index > base_register:
+                    base_register = index
+        current_register = base_register
+        
         def value_to_string(value: FunctionCallHandler|str) -> str:
+            nonlocal current_register
             if isinstance(value, FunctionCallHandler):  # value is a function call
                 if value.is_builtin:
                     return_register = destination
                 else:
-                    return_register = int(self.compiler_state.get_first_unused_register()[1:])
-                function_call_code = value.generate_code(self.parent_function_name, return_register)
+                    return_register = current_register
+                    current_register += 1
+                function_call_code = value.generate_code(self.parent_function_name, return_register, current_register)
                 generated_lines.extend(function_call_code)
                 if not value.is_builtin:
                     generated_lines.append(f'mov {return_register} ${RETURN_REGISTER_ADDRESS}')
@@ -297,13 +308,29 @@ class ExpressionHandler:
                 return f'${self.compiler_state.global_namespace[value]}'
             return f'${self.compiler_state.function_namespaces[self.parent_function_name]["locals"][value]}'  # value is a local variable
         
+        def get_arithmetic_register(a: str, b: str) -> str:
+            nonlocal current_register
+            a_is_register = is_arithmetic_register(a)
+            b_is_register = is_arithmetic_register(b)
+            amount_registers = a_is_register + b_is_register
+            
+            if amount_registers == 0:  # neither are registers
+                register_string = f'${current_register}'
+                current_register += 1
+                return register_string
+            if amount_registers == 1:  # only 1 is a register
+                return a if a_is_register else b
+            # both are registers
+            current_register -= 1
+            return min(a, b)
+        
         def get_register(i: int, a: str, b: str|None):
             b = 'placeholder' if b is None else b  # [note 4]
             if i == len(self.expression_values)-1:
-                if self.compiler_state.used_registers:
-                    self.compiler_state.used_registers.pop()  # not sure that this works 100% of the time
-                return destination
-            return int(self.compiler_state.get_arithmetic_register(a, b)[1:])
+                returned_register = destination
+            else:
+                returned_register = int(get_arithmetic_register(a, b)[1:])
+            return returned_register
 
         generated_lines = []
         stack = deque()
@@ -331,6 +358,10 @@ class ExpressionHandler:
                     generated_lines.append(negate_instruction)
                 
                 stack.append(f'${register}')
+        
+        function_base_register_value = self.compiler_state.function_base_registers.get(self.parent_function_name)
+        if function_base_register_value is None or current_register > function_base_register_value:
+            self.compiler_state.function_base_registers[self.parent_function_name] = current_register
         
         if not generated_lines:
             return [f'mov {destination} {stack[0]}']

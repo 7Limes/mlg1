@@ -43,27 +43,4 @@ class CompilerState:
     function_tokens: list[FunctionToken] = default_field([])
     current_function_token: FunctionToken | None = None
 
-    used_registers: list[str] = default_field([])
-
-
-    def get_first_unused_register(self) -> str:
-        for i in range(ARITHMETIC_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS+AMOUNT_ARITHMETIC_REGISTERS):
-            register = f'${i}'
-            if register not in self.used_registers:
-                self.used_registers.append(register)
-                return register
-        error((-1, -1), '', 'Ran out of arithmetic registers!')
-
-
-    def get_arithmetic_register(self, a: str, b: str) -> str:
-        a_is_register = is_arithmetic_register(a)
-        b_is_register = is_arithmetic_register(b)
-        amount_registers = a_is_register + b_is_register
-        
-        if amount_registers == 0:  # neither are registers
-            return self.get_first_unused_register()
-        if amount_registers == 1:  # only 1 is a register
-            return a if a_is_register else b
-        # both are registers
-        self.used_registers.remove(max(a, b))
-        return min(a, b)
+    function_base_registers: dict[str, int] = default_field({})

@@ -2,6 +2,7 @@
 
 ## Features
 - Declare variables without initialization
+- Add != operator
 - Check if file exists for $ file loading
 - inline functions?
 - better function call register use
