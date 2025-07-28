@@ -338,7 +338,7 @@ class ExpressionHandler:
         # Omit final mov if the expression consists solely of a builtin function call
         last_value = self.expression_values[-1]
         if last_value not in OPERATORS and not \
-            isinstance(last_value, FunctionCallHandler) and not last_value.is_builtin:
+            (isinstance(last_value, FunctionCallHandler) and last_value.is_builtin):
             generated_lines.append(f'mov {destination} {stack[0]}')
         return generated_lines
 
