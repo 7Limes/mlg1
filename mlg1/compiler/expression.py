@@ -51,6 +51,11 @@ OPERATORS = {
         'instruction': 'less {dest} {a} {b}',
         'negate': True
     },
+    '!=': {
+        'function': lambda a, b: int(a!=b),
+        'instruction': 'equal {dest} {a} {b}',
+        'negate': True
+    },
     '!': {
         'function': lambda a: int(not a),
         'instruction': 'not {dest} {a}',

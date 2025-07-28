@@ -93,6 +93,7 @@ operator
     | '<='
     | '>='
     | '=='
+    | '!='
     ;
 
 VARIABLE_KEYWORD: ('let' | 'global');
