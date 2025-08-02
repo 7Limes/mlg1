@@ -42,5 +42,6 @@ class CompilerState:
 
     function_tokens: list[FunctionToken] = default_field([])
     current_function_token: FunctionToken | None = None
+    called_functions: set[str] = default_field({'start', 'tick'})
 
     function_base_registers: dict[str, int] = default_field({})

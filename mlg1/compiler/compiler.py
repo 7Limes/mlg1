@@ -138,6 +138,10 @@ class PreprocessListener(BaseListener):
     def exitFunction(self, _ctx: mlg1Parser.FunctionContext):
         self.current_function = None
     
+    def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
+        function_name = ctx.NAME().getText()
+        self.compiler_state.called_functions.add(function_name)
+    
     def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
         for declared_var_token in ctx.declaredVariablesList().declaredVariable():
@@ -448,6 +452,10 @@ def after_preprocess(compiler_state: CompilerState, data_file_path: str):
     - Adds meta vars into the constant namespace
     - Generates the data file if necessary
     """
+
+    # Remove functions that aren't called
+    compiler_state.function_tokens = [t for t in compiler_state.function_tokens if t.name in compiler_state.called_functions]
+
     data_file_rules = []
     for var_name, data_entry in compiler_state.data_entries.items():
         entry_type = data_entry['type']
