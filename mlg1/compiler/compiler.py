@@ -51,7 +51,7 @@ class PreprocessListener(BaseListener):
         self.compiler_state = compiler_state
         self.source_file = source_file
         
-        self.current_function: str = None
+        self.current_function_name: str = None
     
     def _declare_variable(self, ctx: ParserRuleContext, name: str, is_global: bool):
         """
@@ -60,23 +60,23 @@ class PreprocessListener(BaseListener):
         # Error checking
         if name in RESERVED_NAMES:
             self.error(ctx, f'Variable name "{name}" is reserved.')
-        current_locals = self.compiler_state.function_namespaces[self.current_function]['locals']
+        current_locals = self.compiler_state.function_namespaces[self.current_function_name]['locals']
         if name in current_locals or name in self.compiler_state.global_namespace or name in self.compiler_state.constant_namespace:
             self.error(ctx, f'Variable "{name}" declared twice.')
-        if self.current_function is None:
+        if self.current_function_name is None:
             self.error(ctx, 'Current function is None.')
         
         # Set namespace values
         if is_global:  # global var
             self.compiler_state.global_namespace[name] = self.compiler_state.current_address
         else:  # local var
-            self.compiler_state.function_namespaces[self.current_function]['locals'][name] = self.compiler_state.current_address
+            self.compiler_state.function_namespaces[self.current_function_name]['locals'][name] = self.compiler_state.current_address
     
     def _evaluate_constant_expression(self, expression_token: mlg1Parser.ExpressionContext) -> int:
         """
         Evaluates an expression consisting solely of integer literals and constants.
         """
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.current_function)
+        expression = ExpressionHandler(self.compiler_state, expression_token)
         expression_values = expression.expression_values
         if len(expression_values) > 1 or not is_integer(expression_values[0]):
             self.error(expression_token, 'Expected only integer literals and constants in expression.')
@@ -105,7 +105,7 @@ class PreprocessListener(BaseListener):
         self.compiler_state.constant_namespace[constant_name] = value
     
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
-        function_name = ctx.NAME().getText()
+        function_name: str = ctx.NAME().getText()
         if function_name in RESERVED_NAMES or function_name in BUILTIN_FUNCTIONS:
             self.error(ctx, f'Function "{function_name}" is reserved.')
         if function_name in self.compiler_state.function_namespaces:
@@ -117,7 +117,9 @@ class PreprocessListener(BaseListener):
         if function_name not in {'start', 'tick'}:
             self.compiler_state.contains_return = True  # include return subroutine if a custom function exists [note 1]
         
-        self.compiler_state.function_namespaces[function_name] = {'parameters': [], 'locals': {}}
+        parameter_count = 0
+        function_namespace = {'locals': {}}
+
         if parameter_list_token:
             seen_parameter_names = set()
             for parameter_name_token in parameter_list_token.children:
@@ -127,16 +129,19 @@ class PreprocessListener(BaseListener):
                 if parameter_name in seen_parameter_names:
                     self.error(parameter_list_token, f'Parameter "{parameter_name}" declared twice.')
                 seen_parameter_names.add(parameter_name)
-                self.compiler_state.function_namespaces[function_name]['parameters'].append(self.compiler_state.current_address)
-                self.compiler_state.function_namespaces[function_name]['locals'][parameter_name] = self.compiler_state.current_address
+                parameter_count += 1
+                function_namespace['locals'][parameter_name] = self.compiler_state.current_address
                 self.compiler_state.current_address += 1
-        self.current_function = function_name
+        
+        function_namespace['parameter_count'] = parameter_count
+        self.compiler_state.function_namespaces[function_name] = function_namespace
+        self.current_function_name = function_name
         
         function_token = FunctionToken(ctx, function_name, self.source_file, self.source_lines)
         self.compiler_state.function_tokens.append(function_token)
     
     def exitFunction(self, _ctx: mlg1Parser.FunctionContext):
-        self.current_function = None
+        self.current_function_name = None
     
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         function_name = ctx.NAME().getText()
@@ -199,7 +204,8 @@ class CodegenListener(BaseListener):
     def _get_var_address(self, var_name: str, is_global: bool) -> int:
         if is_global:
             return self.compiler_state.global_namespace[var_name]
-        return self.compiler_state.function_namespaces[self.function_token.name]['locals'][var_name]
+        namespace = self.compiler_state.get_current_namespace()
+        return namespace['locals'][var_name]
 
 
     def _add_conditional_inversion(self):
@@ -258,7 +264,7 @@ class CodegenListener(BaseListener):
                 self.code_writer.add_line(f'mov {var_address} {string_address}')
             elif declared_var_token.expression():
                 expression_token = declared_var_token.expression()
-                expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
+                expression = ExpressionHandler(self.compiler_state, expression_token)
                 expression_code = expression.generate_code(var_address)
                 self.code_writer.add_lines(expression_code)
     
@@ -270,7 +276,7 @@ class CodegenListener(BaseListener):
             self._add_source_code_comment(ctx)
 
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
+        expression = ExpressionHandler(self.compiler_state, expression_token)
         var_name = ctx.NAME().getText()
         is_global = var_name in self.compiler_state.global_namespace
         expression_code = expression.generate_code(self._get_var_address(var_name, is_global))
@@ -288,7 +294,7 @@ class CodegenListener(BaseListener):
         if initializer_list_token is not None:
             array_value_tokens = initializer_list_token.getChildren(lambda c: isinstance(c, mlg1Parser.ExpressionContext))
             for i, array_value_token in enumerate(array_value_tokens):
-                expression = ExpressionHandler(self.compiler_state, array_value_token, self.function_token.name)
+                expression = ExpressionHandler(self.compiler_state, array_value_token)
                 expression_code = expression.generate_code(array_address+i+1)
                 self.code_writer.add_lines(expression_code)
         
@@ -297,14 +303,14 @@ class CodegenListener(BaseListener):
             self._add_source_code_comment(ctx)
 
             function_call = FunctionCallHandler.from_token(self.compiler_state, ctx)
-            function_call_code = function_call.generate_code(self.function_token.name, RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS)
+            function_call_code = function_call.generate_code(RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS)
             self.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
         self._add_source_code_comment(ctx)
         
         expression_token = ctx.expression()
-        expression = ExpressionHandler(self.compiler_state, expression_token, self.function_token.name)
+        expression = ExpressionHandler(self.compiler_state, expression_token)
         expression_code = expression.generate_code(RETURN_REGISTER_ADDRESS)
         self.code_writer.add_lines(expression_code)
         self.code_writer.add_line('jmp return 1')
@@ -323,7 +329,7 @@ class CodegenListener(BaseListener):
 
     def generateIfStatement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
         condition_expression_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token, self.function_token.name)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         self.code_writer.add_lines(expression_code)
         self._add_conditional_inversion()
@@ -367,7 +373,7 @@ class CodegenListener(BaseListener):
         loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
         condition_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_token, self.function_token.name)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_token)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         
         self.code_writer.add_line(loop_label_name + ':')
@@ -402,7 +408,7 @@ class CodegenListener(BaseListener):
             increment_token = assignment[0]
 
         condition_token = ctx.expression()
-        condition_expression = ExpressionHandler(self.compiler_state, condition_token, self.function_token.name)
+        condition_expression = ExpressionHandler(self.compiler_state, condition_token)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
         loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_continue_label_name = f'{self.function_token.name}_continue_{ctx.start.line}_{ctx.start.column}'

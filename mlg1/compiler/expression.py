@@ -86,7 +86,7 @@ class FunctionCallHandler:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
         return FunctionCallHandler(compiler_state, function_name, function_args, token)
 
-    def generate_builtin(self, parent_function_name: str, return_register: int, current_register: int):
+    def generate_builtin(self, return_register: int, current_register: int):
         generated_lines = []
         argument_destinations = range(current_register, current_register+4)
         builtin_arguments = {
@@ -95,7 +95,7 @@ class FunctionCallHandler:
         }
 
         for i, expression_token, arg_destination in zip(range(len(self.arguments)), self.arguments, argument_destinations):
-            expression = ExpressionHandler(self.compiler_state, expression_token, parent_function_name)
+            expression = ExpressionHandler(self.compiler_state, expression_token)
             expression_code = expression.generate_code(arg_destination)
             if expression_code[-1].startswith('mov'):
                 builtin_arguments[f'a{i}'] = expression_code[-1].split(' ')[-1]  # very hacky but works (dont do this)
@@ -110,11 +110,15 @@ class FunctionCallHandler:
         generated_lines.extend(parsed_lines)
         return generated_lines
 
-    def generate_regular(self, parent_function_name: str) -> list[str]:
+    def generate_regular(self) -> list[str]:
         generated_lines = []
-        argument_destinations = self.compiler_state.function_namespaces[self.function_name]['parameters']
+
+        namespace = self.compiler_state.function_namespaces[self.function_name]
+        parameter_count = namespace['parameter_count']
+        argument_destinations = list(namespace['locals'].values())[:parameter_count]  # First `parameter_count` values are the arg addresses
+        
         for expression_token, destination in zip(self.arguments, argument_destinations):
-            expression = ExpressionHandler(self.compiler_state, expression_token, parent_function_name)
+            expression = ExpressionHandler(self.compiler_state, expression_token)
             expression_code = expression.generate_code(destination)
             generated_lines.extend(expression_code)
 
@@ -129,7 +133,7 @@ class FunctionCallHandler:
         generated_lines.extend(final_lines)
         return generated_lines
 
-    def generate_code(self, parent_function_name: str, builtin_return_register: int, current_register: int) -> list[str]:
+    def generate_code(self, builtin_return_register: int, current_register: int) -> list[str]:
         name = self.function_name
 
         if not self.is_builtin and name not in self.compiler_state.function_namespaces:
@@ -138,14 +142,14 @@ class FunctionCallHandler:
         if self.is_builtin:
             amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[name]
         else:
-            amount_args = len(self.compiler_state.function_namespaces[name]['parameters'])
+            amount_args = self.compiler_state.function_namespaces[name]['parameter_count']
         amount_passed_args = len(self.arguments)
         if amount_passed_args != amount_args:
             error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
         
         if self.is_builtin:
-            return self.generate_builtin(parent_function_name, builtin_return_register, current_register)
-        return self.generate_regular(parent_function_name)
+            return self.generate_builtin(builtin_return_register, current_register)
+        return self.generate_regular()
 
 
 def flatten_expression(ctx: mlg1Parser.ExpressionContext) -> list:
@@ -228,14 +232,13 @@ def convert_to_rpn(tokens: list) -> list:
 
 
 class ExpressionHandler:
-    def __init__(self, compiler_state: CompilerState, ctx: mlg1Parser.ExpressionContext, parent_function_name: str):
+    def __init__(self, compiler_state: CompilerState, ctx: mlg1Parser.ExpressionContext):
         self.compiler_state = compiler_state
         flat_expression = flatten_expression(ctx)
         rpn_expression = convert_to_rpn(flat_expression)
-        self.expression_values: list[FunctionCallHandler | str] = [parse_primary(compiler_state, t, parent_function_name) for t in rpn_expression]
+        self.expression_values: list[FunctionCallHandler | str] = [parse_primary(compiler_state, t) for t in rpn_expression]
         self.expression_values = [t for t in self.expression_values if t is not None]
         self.ctx = ctx
-        self.parent_function_name = parent_function_name
 
         self._check()
         self._reduce()
@@ -298,7 +301,7 @@ class ExpressionHandler:
                 else:
                     return_register = current_register
                     current_register += 1
-                function_call_code = value.generate_code(self.parent_function_name, return_register, current_register)
+                function_call_code = value.generate_code(return_register, current_register)
                 generated_lines.extend(function_call_code)
                 if not value.is_builtin:
                     generated_lines.append(f'mov {return_register} ${RETURN_REGISTER_ADDRESS}')
@@ -311,7 +314,9 @@ class ExpressionHandler:
                 return str(self.compiler_state.constant_namespace[value])
             if value in self.compiler_state.global_namespace:  # value is a global variable
                 return f'${self.compiler_state.global_namespace[value]}'
-            return f'${self.compiler_state.function_namespaces[self.parent_function_name]["locals"][value]}'  # value is a local variable
+            
+            namespace = self.compiler_state.get_current_namespace()
+            return f'${namespace['locals'][value]}'  # value is a local variable
         
         def get_arithmetic_register(a: str, b: str) -> str:
             nonlocal current_register
@@ -364,9 +369,10 @@ class ExpressionHandler:
                 
                 stack.append(f'${register}')
         
-        function_base_register_value = self.compiler_state.function_base_registers.get(self.parent_function_name)
-        if function_base_register_value is None or current_register > function_base_register_value:
-            self.compiler_state.function_base_registers[self.parent_function_name] = current_register
+        current_function_name = self.compiler_state.current_function_token.name
+        base_register_value = self.compiler_state.function_base_registers.get(current_function_name)
+        if base_register_value is None or current_register > base_register_value:
+            self.compiler_state.function_base_registers[current_function_name] = current_register
         
         if not generated_lines:
             return [f'mov {destination} {stack[0]}']
@@ -379,7 +385,7 @@ class ExpressionHandler:
         return generated_lines
 
 
-def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContext, parent_function_name: str) -> ExpressionHandler | FunctionCallHandler | str:
+def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContext) -> ExpressionHandler | FunctionCallHandler | str:
     if isinstance(token, TerminalNode):
         return None
     
@@ -388,14 +394,14 @@ def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContex
         first_child = token.children[0]
 
     if isinstance(first_child, mlg1Parser.ExpressionContext):  # Expression
-        return ExpressionHandler(compiler_state, first_child, parent_function_name)
+        return ExpressionHandler(compiler_state, first_child)
     
     if isinstance(first_child, mlg1Parser.FunctionCallContext):  # Function call
         return FunctionCallHandler.from_token(compiler_state, first_child)
     
     if isinstance(token, mlg1Parser.PrimaryContext):
         name = token.NAME()
-        function_namespace = compiler_state.function_namespaces.get(parent_function_name)
+        function_namespace = compiler_state.get_current_namespace()
         if function_namespace is None:
             function_locals = {}
         else:
