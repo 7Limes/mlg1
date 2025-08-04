@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 import copy
 from typing import TypedDict
 from mlg1.compiler.constants import *
-from mlg1.compiler.util import error, is_arithmetic_register
 from mlg1.parser.mlg1Parser import mlg1Parser
 
 

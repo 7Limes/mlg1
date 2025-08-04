@@ -77,6 +77,8 @@ class FunctionCallHandler:
         self.token = token
         self.is_builtin = function_name in BUILTIN_FUNCTIONS
 
+        self.error_checks()
+
     @staticmethod
     def from_token(compiler_state: CompilerState, token: mlg1Parser.FunctionCallContext):
         function_name = token.NAME().getText()
@@ -85,6 +87,23 @@ class FunctionCallHandler:
         if argument_list_token is not None:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
         return FunctionCallHandler(compiler_state, function_name, function_args, token)
+    
+    def error_checks(self):
+        if self.function_name not in BUILTIN_FUNCTIONS and \
+          self.function_name not in self.compiler_state.function_namespaces:
+            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, 
+                      f'Unrecognized function "{self.function_name}"'
+            )
+        
+        if self.is_builtin:
+            amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[self.function_name]
+        else:
+            amount_args = self.compiler_state.function_namespaces[self.function_name]['parameter_count']
+        amount_passed_args = len(self.arguments)
+        if amount_passed_args != amount_args:
+            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, 
+                      f'Expected {amount_args} arguments for function "{self.function_name}" but got {amount_passed_args}.'
+            )
 
     def generate_builtin(self, return_register: int, current_register: int):
         generated_lines = []
@@ -135,17 +154,6 @@ class FunctionCallHandler:
 
     def generate_code(self, builtin_return_register: int, current_register: int) -> list[str]:
         name = self.function_name
-
-        if not self.is_builtin and name not in self.compiler_state.function_namespaces:
-            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Unrecognized function "{name}"')
-
-        if self.is_builtin:
-            amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[name]
-        else:
-            amount_args = self.compiler_state.function_namespaces[name]['parameter_count']
-        amount_passed_args = len(self.arguments)
-        if amount_passed_args != amount_args:
-            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, f'Expected {amount_args} arguments for function "{name}" but got {amount_passed_args}.')
         
         if self.is_builtin:
             return self.generate_builtin(builtin_return_register, current_register)
