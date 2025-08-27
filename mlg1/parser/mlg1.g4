@@ -83,6 +83,7 @@ primary
 unaryOperator
     : '-'
     | '!'
+    | '&'
     ;
 
 operator

@@ -8,6 +8,20 @@ from mlg1.compiler.util import is_integer, error_ctx, is_arithmetic_register
 from mlg1.compiler.data import CompilerState
 
 
+def _get_var_address(compiler_state: CompilerState, token, var_name: str) -> int:
+    if var_name in compiler_state.global_namespace:
+        return compiler_state.global_namespace[var_name]
+    
+    namespace = compiler_state.get_current_namespace()['locals']
+    if var_name in namespace:
+        return namespace[var_name]
+
+    error_ctx(
+        token, compiler_state.current_function_token.source_lines,
+        f'Tried to get reference of undefined variable "{var_name}"'
+    )
+
+
 OPERATORS = {
     '+': {
         'function': lambda a, b: a+b,
@@ -65,6 +79,11 @@ OPERATORS = {
         'function': lambda a: -a,
         'instruction': 'mul {dest} {a} -1',
         'unary': True
+    },
+    '&': {
+        'function': lambda cs, tok, a: _get_var_address(cs, tok, a),
+        'unary': True,
+        'use_identifiers': True
     }
 }
 
@@ -277,15 +296,24 @@ class ExpressionHandler:
                 stack.append(added_value)
             else:
                 b = stack.pop()
-                if OPERATORS[value].get('unary'):
-                    if isinstance(b, str) and is_integer(b):
-                        stack.append(str(OPERATORS[value]['function'](int(b))))
+                operator_data = OPERATORS[value]
+                operator_function = operator_data['function']
+
+                if operator_data.get('unary'):
+                    if operator_data.get('use_identifiers'):
+                        if isinstance(b, str) and not is_integer(b):
+                            stack.append(str(operator_function(self.compiler_state, self.ctx, b)))
+                        else:
+                            stack.extend([b, value])
                     else:
-                        stack.extend([b, value])
+                        if isinstance(b, str) and is_integer(b):
+                            stack.append(str(operator_function(int(b))))
+                        else:
+                            stack.extend([b, value])
                 else:
                     a = stack.pop()
                     if isinstance(a, str) and is_integer(a) and isinstance(b, str) and is_integer(b):
-                        stack.append(str(OPERATORS[value]['function'](int(a), int(b))))
+                        stack.append(str(operator_function(int(a), int(b))))
                     else:
                         stack.extend([a, b, value])
         

@@ -51,6 +51,9 @@ class CompilerState:
 
     function_base_registers: dict[str, int] = default_field({})
 
+    included_files: set[str] = default_field(set())
+    
+
     def get_current_namespace(self):
         """Returns the namespace of the current function."""
         if self.current_function_token is None:

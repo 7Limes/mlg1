@@ -89,10 +89,11 @@ class PreprocessListener(BaseListener):
     
     def enterIncludeFile(self, ctx):
         file_path = ctx.STRING().getText()[1:-1] + '.mlg1'
-
-        preprocess_result = preprocess(self.compiler_state, file_path)
-        if isinstance(preprocess_result, Err):
-            self.error(ctx, preprocess_result.err_value)
+        if file_path not in self.compiler_state.included_files:
+            self.compiler_state.included_files.add(file_path)
+            preprocess_result = preprocess(self.compiler_state, file_path)
+            if isinstance(preprocess_result, Err):
+                self.error(ctx, preprocess_result.err_value)
     
     def enterLoadFile(self, ctx):
         name = ctx.NAME().getText()
@@ -194,10 +195,8 @@ class CodegenListener(BaseListener):
         self.function_token: FunctionToken = function_token
 
         self.block_end_stack: deque[str] = deque()
-
         self.break_label_stack: deque[str] = deque()
         self.continue_label_stack: deque[str] = deque()
-        
         self.for_loop_end_stack: deque[tuple[str, mlg1Parser.AssignmentContext]] = []
     
     
@@ -327,7 +326,7 @@ class CodegenListener(BaseListener):
         continue_label = self.continue_label_stack[-1]
         self.code_writer.add_line(f'jmp {continue_label} 1')
 
-    def generateIfStatement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
+    def generate_if_statement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
         condition_expression_token = ctx.expression()
         condition_expression = ExpressionHandler(self.compiler_state, condition_expression_token)
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS)
@@ -356,13 +355,13 @@ class CodegenListener(BaseListener):
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
         self._add_source_code_comment(ctx)
         
-        self.generateIfStatement(ctx, ctx)
+        self.generate_if_statement(ctx, ctx)
     
     def enterElseIfClause(self, ctx: mlg1Parser.ElseIfClauseContext):
         self._add_source_code_comment(ctx)
 
         parent: mlg1Parser.IfStatementContext = ctx.parentCtx
-        self.generateIfStatement(ctx, parent)
+        self.generate_if_statement(ctx, parent)
 
     def enterElseClause(self, ctx: mlg1Parser.ElseClauseContext):
         self._add_source_code_comment(ctx)
