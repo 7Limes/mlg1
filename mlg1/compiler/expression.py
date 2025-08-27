@@ -172,8 +172,6 @@ class FunctionCallHandler:
         return generated_lines
 
     def generate_code(self, builtin_return_register: int, current_register: int) -> list[str]:
-        name = self.function_name
-        
         if self.is_builtin:
             return self.generate_builtin(builtin_return_register, current_register)
         return self.generate_regular()

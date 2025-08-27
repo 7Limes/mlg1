@@ -1,0 +1,15 @@
+// Basic functions for manipulating colors.
+
+
+fn pack_color(r, g, b) {
+    return r * 65536 + g * 256 + b
+}
+
+
+fn unpack_color(p_r, p_g, p_b, packed_color) {
+    set(p_b, packed_color % 256)
+    packed_color = packed_color / 256
+    set(p_g, packed_color % 256)   
+    packed_color = packed_color / 256
+    set(p_r, packed_color % 256)
+}

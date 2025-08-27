@@ -1,0 +1,91 @@
+// Basic math functions.
+
+
+define __RAND_MODULUS 2147483647
+define __RAND_MULTIPLIER 1103515245
+define __RAND_INCREMENT 1013904223
+
+
+// Returns `x` clamped to [`lower`, `upper`]
+fn clamp(x, lower, upper) {
+    let is_low = x < lower
+    let is_high = x > upper
+    return is_low*lower + is_high*upper + !(is_low + is_high)*x
+}
+
+
+// Returns `x` wrapped to [`lower`, `upper`)
+fn wrap(x, lower, upper) {
+    let range = upper - lower
+    return (x - lower) % range + lower
+}
+
+
+// Returns the absolute value of `x`
+fn abs(x) {
+    return x * (2 * (x > 0) - 1)    
+}
+
+
+// Returns -1 if `x` is negative, 1 if `x` is positive, and 0 if `x` is 0
+fn signof(x) {
+    let is_negative = x < 0
+    return (-is_negative + !is_negative) * (x != 0)
+}
+
+
+// Returns a random integer
+fn next_rand() {
+    global __rand_value = (__rand_value * __RAND_MULTIPLIER + __RAND_INCREMENT) % __RAND_MODULUS
+    return __rand_value
+}
+
+
+// Seeds the random number generator.
+fn srand(seed) {
+    __rand_value = seed
+}
+
+
+// Returns the maximum value of `a` or `b`
+fn max(a, b) {
+    let a_is_max = a > b
+    return a * a_is_max + b * !a_is_max
+}
+
+
+// Returns the minimum value of `a` or `b`
+fn min(a, b) {
+    let a_is_min = a < b
+    return a * a_is_min + b * !a_is_min
+}
+
+
+// Returns `x`^`y`
+fn pow(x, y) {
+    if y < 0 {
+        return -1
+    }
+    if y == 0 {
+        return 1
+    }
+
+    let result = 1
+    for (let i = 0; i < y; i = i + 1) {
+        result = result * x
+    }
+    return result
+}
+
+
+fn factorial(x) {
+    if x == 0 {
+        return 1
+    }
+
+    let result = 1
+    for (let i = x; i > 1; i = i - 1) {
+        result = result * i
+    }
+    return result
+}

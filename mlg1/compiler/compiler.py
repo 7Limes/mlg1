@@ -24,6 +24,9 @@ from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler
 from mlg1.compiler.data import CompilerState, CompilerFlags, FunctionToken
 from mlg1.compiler.file import get_parsed_file_size
 
+from pathlib import Path
+STDLIB_PATH = Path(__file__).parents[1] / 'stdlib'
+
 
 class CustomErrorListener(ErrorListener):
     def __init__(self):
@@ -88,12 +91,24 @@ class PreprocessListener(BaseListener):
         self.compiler_state.meta_variables[name] = value
     
     def enterIncludeFile(self, ctx):
-        file_path = ctx.STRING().getText()[1:-1] + '.mlg1'
+        include_path: str = ctx.STRING().getText()[1:-1]
+        file_path = include_path + '.mlg1'
         if file_path not in self.compiler_state.included_files:
             self.compiler_state.included_files.add(file_path)
+
+            # Try to include normally
             preprocess_result = preprocess(self.compiler_state, file_path)
-            if isinstance(preprocess_result, Err):
-                self.error(ctx, preprocess_result.err_value)
+            if isinstance(preprocess_result, Ok):
+                return
+            original_err_message = preprocess_result.err_value
+            
+            # Try to include from stdlib
+            stdlib_file_path = str(STDLIB_PATH / include_path) + '.mlg1'
+            preprocess_result = preprocess(self.compiler_state, stdlib_file_path)
+            if isinstance(preprocess_result, Ok):
+                return
+            
+            self.error(ctx, original_err_message)
     
     def enterLoadFile(self, ctx):
         name = ctx.NAME().getText()
