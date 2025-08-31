@@ -1,0 +1,100 @@
+include "math"
+
+
+// Convert an integer to an ascii encoded string
+fn int_to_str(buffer, x) {
+    let amount_digits = x == 0
+    let is_negative = x < 0
+    x = abs(x)
+
+    let x_copy = x
+    while x_copy > 0 {
+        x_copy = x_copy / 10
+        amount_digits = amount_digits + 1
+    }
+
+    if is_negative {
+        set(buffer, amount_digits+1)  // Set the length of the string
+        buffer = buffer + 1
+        set(buffer, 45)  // Set hyphen for negative
+    }
+    else {
+        set(buffer, amount_digits)  // Set the length of the string
+    }
+
+    for (let i = buffer+amount_digits; i > buffer; i = i - 1) {
+        let digit = x % 10 + 48
+        x = x / 10
+        set(i, digit)
+    }
+}
+
+
+fn strncpy(dest, src, n) {
+    let src_length = get(src)
+    let iterations = min(src_length, n)
+    let src_end = src + 1 + iterations
+
+    set(dest, src_length)
+    dest = dest + 1
+
+    for (let p = src + 1; p < src_end; p = p + 1) {
+        let char = get(p)
+        set(dest, char)
+        dest = dest + 1
+    }
+}
+
+
+fn strncat(s1, s2, n) {
+    let s1_length = get(s1)
+    let s2_length = get(s2)
+    let chars_to_copy = min(s2_length, n)
+    let new_length = s1_length + chars_to_copy
+    set(s1, new_length)
+
+    let s2_end = s2 + 1 + chars_to_copy
+    let s1_ptr = s1 + 1 + s1_length
+    for (let p = s2 + 1; p < s2_end; p = p + 1) {
+        let char = get(p)
+        set(s1_ptr, char)
+        s1_ptr = s1_ptr + 1
+    }
+}
+
+
+fn substr(dest, src, start_index, end_index) {
+    if start_index > end_index {
+        return -1
+    }
+
+    let src_length = get(src)
+
+    if start_index < 0 + end_index >= src_length {
+        return -1
+    }
+
+    let substr_length = end_index - start_index + 1
+    set(dest, substr_length)
+    dest = dest + 1
+
+    let substr_end = src + start_index
+    for (let p = src+start_index; p < substr_end; p = p + 1) {
+        let char = get(p)
+        set(dest, char)
+        dest = dest + 1
+    }
+
+    return 0
+}
+
+
+// Copy `n` slots from `src` to `dest`
+fn memcpy(dest, src, n) {
+    let src_end = src + n
+    for (let p = src; p < src_end; p = p + 1) {
+        let value = get(p)
+        set(dest, value)
+        dest = dest + 1
+    }
+}

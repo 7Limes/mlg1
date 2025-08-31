@@ -91,27 +91,3 @@ fn factorial(x) {
     return result
 }
 
-
-// Convert an integer to an ascii encoded string
-fn int_to_str(buffer, x) {
-    let amount_digits = 1
-    let is_negative = x < 0
-    x = abs(x)
-
-    while x > 0 {
-        x = x / 10
-        amount_digits = amount_digits + 1
-    }
-
-    set(buffer, amount_digits)  // Set the length of the string
-    if is_negative {
-        buffer = buffer + 1
-        set(buffer, 45)  // Set hyphen for negative
-    }
-
-    for (let i = buffer+amount_digits; i > buffer; i = i - 1) {
-        let digit = x % 10
-        x = x / 10
-        set(i, digit)
-    }
-}
