@@ -2,26 +2,26 @@
 
 
 fn pack_color(r, g, b) {
-    return r * 65536 + g * 256 + b
+    return b * 65536 + g * 256 + r
 }
 
 
 // Unpacks a packed color and sets the current color.
 fn unpack_color(packed_color) {
-    let b = packed_color % 256
+    let r = packed_color % 256
     packed_color = packed_color / 256
     let g = packed_color % 256
     packed_color = packed_color / 256
-    let r = packed_color % 256
+    let b = packed_color % 256
     color(r, g, b)
 }
 
 
 // Unpacks a packed color and stores the components in `p_r`, `p_g`, and `p_b`.
 fn unpack_color_into(p_r, p_g, p_b, packed_color) {
-    set(p_b, packed_color % 256)
+    set(p_r, packed_color % 256)
     packed_color = packed_color / 256
     set(p_g, packed_color % 256)   
     packed_color = packed_color / 256
-    set(p_r, packed_color % 256)
+    set(p_b, packed_color % 256)
 }
