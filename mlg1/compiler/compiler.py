@@ -13,6 +13,7 @@ from collections import deque
 from result import Result, Ok, Err
 from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
+from g1asm.data import parse_entry
 from mlg1.parser.mlg1Lexer import mlg1Lexer
 from mlg1.parser.mlg1Listener import mlg1Listener
 from mlg1.parser.mlg1Parser import mlg1Parser
@@ -23,7 +24,6 @@ from mlg1.compiler.constants import \
 from mlg1.compiler.util import error, preprocess_error, COLOR_ERROR, CodeWriter, is_integer
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler
 from mlg1.compiler.data import CompilerState, CompilerFlags, FunctionToken
-from mlg1.compiler.file import get_parsed_file_size
 
 from pathlib import Path
 STDLIB_PATH = Path(__file__).parents[1] / 'stdlib'
@@ -489,19 +489,18 @@ def after_preprocess(compiler_state: CompilerState, data_file_path: str):
         data_type = data_entry['data_type']
         operation = data_entry['operation']
         data = data_entry['data']
-        data_query_command = f'g1a data_query {data_type} {operation} {data}'
-        try:
-            query_result = subprocess.check_output(data_query_command, shell=True, text=True)
-            entry_size = int(query_result.strip())
-        except subprocess.CalledProcessError as e:
+
+        parse_entry_result = parse_entry(data_type, operation, data)
+        if isinstance(parse_entry_result, str):
             # TODO: Proper error handling here
-            print(e)
+            print(parse_entry_result)
             sys.exit(1)
+        entry_size = len(parse_entry_result)
 
         data_file_rules.append(f'{compiler_state.current_address}: {data_type} {operation} {data}')
-        if data_type == 'file':  # file
+        if data_type == 'file':
             compiler_state.constant_namespace[var_name] = compiler_state.current_address
-        elif data_type == 'string':  # string
+        elif data_type == 'string':
             compiler_state.string_vars[data_entry['var_address']] = compiler_state.current_address
         
         compiler_state.current_address += entry_size
@@ -576,7 +575,7 @@ def codegen(compiler_state: CompilerState, code_writer: CodeWriter):
 
 def main() -> int:
     try:
-        arg_parser = argparse.ArgumentParser(description='Compile mlg1 programs')
+        arg_parser = argparse.ArgumentParser('mlg1', description='Compile mlg1 programs')
         arg_parser.add_argument('input_file', help='Path to the input mlg1 program')
         arg_parser.add_argument('output_file', help='Path to the output g1 program')
         arg_parser.add_argument('--include_source', '-s', action='store_true', help='Add source code comments to the output program')
