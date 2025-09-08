@@ -7,6 +7,7 @@ https://github.com/7Limes
 
 import sys
 import os
+import subprocess
 import argparse
 from collections import deque
 from result import Result, Ok, Err
@@ -111,10 +112,15 @@ class PreprocessListener(BaseListener):
             # Failed to include
             self.error(ctx, original_err_message)
     
-    def enterLoadFile(self, ctx):
+    def enterLoadFile(self, ctx: mlg1Parser.LoadFileContext):
         name = ctx.NAME().getText()
-        path = ctx.STRING().getText()
-        self.compiler_state.data_entries[name] = {'type': 'f', 'path': path[1:-1]}
+        path = ctx.STRING().getText()[1:-1]
+        operation = ctx.FILE_OPERATION().getText()
+        self.compiler_state.data_entries[name] = {
+            'data_type': 'file',
+            'operation': operation,
+            'data': path
+        }
     
     def enterConstantDefinition(self, ctx: mlg1Parser.ConstantDefinitionContext):
         constant_name = ctx.NAME().getText()
@@ -173,10 +179,11 @@ class PreprocessListener(BaseListener):
             string_token = declared_var_token.STRING()
             if string_token is not None:
                 self.compiler_state.data_entries[name] = {
-                    'type': 's',
-                    'string': string_token.getText()[1:-1],
+                    'data_type': 'string',
+                    'operation': 'raw',
+                    'data': string_token.getText()[1:-1],
                     'var_address': self.compiler_state.current_address
-            }
+                }
             
             self.compiler_state.current_address += 1
     
@@ -479,21 +486,25 @@ def after_preprocess(compiler_state: CompilerState, data_file_path: str):
 
     data_file_rules = []
     for var_name, data_entry in compiler_state.data_entries.items():
-        entry_type = data_entry['type']
-        if entry_type == 'f':  # file
-            file_path = data_entry['path']
-            data_file_rules.append(f'{compiler_state.current_address} f {file_path}')
-            compiler_state.constant_namespace[var_name] = compiler_state.current_address
-            with open(file_path, 'rb') as f:
-                file_bytes = f.read()
-            file_extension = os.path.splitext(file_path)[1]
-            compiler_state.current_address += get_parsed_file_size(file_bytes, file_extension)
+        data_type = data_entry['data_type']
+        operation = data_entry['operation']
+        data = data_entry['data']
+        data_query_command = f'g1a data_query {data_type} {operation} {data}'
+        try:
+            query_result = subprocess.check_output(data_query_command, shell=True, text=True)
+            entry_size = int(query_result.strip())
+        except subprocess.CalledProcessError as e:
+            # TODO: Proper error handling here
+            print(e)
+            sys.exit(1)
 
-        elif entry_type == 's':  # string
-            string = data_entry['string']
-            data_file_rules.append(f'{compiler_state.current_address} s {string}')
+        data_file_rules.append(f'{compiler_state.current_address}: {data_type} {operation} {data}')
+        if data_type == 'file':  # file
+            compiler_state.constant_namespace[var_name] = compiler_state.current_address
+        elif data_type == 'string':  # string
             compiler_state.string_vars[data_entry['var_address']] = compiler_state.current_address
-            compiler_state.current_address += len(string) + 1  # add 1 for length prefix
+        
+        compiler_state.current_address += entry_size
     
     compiler_state.heap_address = compiler_state.current_address
     compiler_state.meta_variables['memory'] += compiler_state.heap_address  # offset requested memory by the stack memory size [note 2]

@@ -7,7 +7,8 @@ metaVariable: '#' META_VARIABLE_NAME INTEGER;
 
 includeFile: 'include' STRING;
 
-loadFile: '$' NAME STRING;
+FILE_OPERATION: 'raw'|'pack'|'img';
+loadFile: '$' NAME FILE_OPERATION STRING;
 
 constantDefinition: 'define' NAME expression;
     

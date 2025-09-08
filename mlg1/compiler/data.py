@@ -32,6 +32,13 @@ class FunctionNamespace(TypedDict):
     locals: dict[str, int]
 
 
+class DataEntry(TypedDict):
+    data_type: str
+    operation: str
+    data: str
+    var_address: int|None = None
+
+
 @dataclass
 class CompilerState:
     compiler_flags: CompilerFlags
@@ -41,7 +48,7 @@ class CompilerState:
     constant_namespace: dict[str, int] = default_field({})
     string_vars: dict[int, int] = default_field({})
     contains_return: bool = False
-    data_entries: dict[str, dict[str, str]] = default_field({})
+    data_entries: dict[str, DataEntry] = default_field({})
     current_address: int = LOCAL_VAR_ADDRESS
     heap_address: int = -1
 

@@ -1,6 +1,6 @@
-# Generated from mlg1.g4 by ANTLR 4.13.2
+# Generated from mlg1.g4 by ANTLR 4.9.2
 from antlr4 import *
-if "." in __name__:
+if __name__ is not None and "." in __name__:
     from .mlg1Parser import mlg1Parser
 else:
     from mlg1Parser import mlg1Parser
