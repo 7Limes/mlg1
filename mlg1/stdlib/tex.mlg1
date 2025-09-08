@@ -18,15 +18,9 @@ fn draw_texture(address, x, y) {
     for (let i = 0; i < img_area; i = i + 1) {
         let pixel_data = get(address+i)
         if pixel_data != TRANSPARENT_COLOR {
-            unpack_color(pixel_data)
-            // let r = pixel_data % 256
-            // pixel_data = pixel_data / 256
-            // let g = pixel_data % 256
-            // pixel_data = pixel_data / 256
-            // let b = pixel_data % 256
-
             let px = i % img_width + x
             let py = i / img_width + y
+            unpack_color(pixel_data)
             point(px, py)
         }
     }
