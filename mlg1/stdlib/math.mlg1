@@ -2,8 +2,7 @@
 
 
 define __RAND_MODULUS 2147483647
-define __RAND_MULTIPLIER 1103515245
-define __RAND_INCREMENT 1013904223
+define __RAND_MULTIPLIER 784588716
 
 
 // Returns `x` clamped to [`lower`, `upper`]
@@ -36,13 +35,17 @@ fn signof(x) {
 
 // Returns a random integer
 fn next_rand() {
-    global __rand_value = (__rand_value * __RAND_MULTIPLIER + __RAND_INCREMENT) % __RAND_MODULUS
+    global __rand_value = __rand_value * __RAND_MULTIPLIER % __RAND_MODULUS
     return __rand_value
 }
 
 
 // Seeds the random number generator.
 fn srand(seed) {
+    if seed == 0 {
+        // Seed cannot be 0 for an MCG.
+        seed = 1
+    }
     __rand_value = seed
 }
 
