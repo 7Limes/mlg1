@@ -39,10 +39,10 @@ GLOBAL_NAMESPACE = {
     'DELTA': 12
 }
 
-HEAP_VARIABLE_NAME = 'HEAP'
-
 RESERVED_NAMES = {'let', 'fn', 'return'}
 RESERVED_NAMES.update(GLOBAL_NAMESPACE.keys())
+
+ENTRYPOINT_FUNCTIONS = {'start', 'tick'}
 
 
 BUILTIN_FUNCTIONS = {

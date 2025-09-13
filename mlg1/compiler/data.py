@@ -25,6 +25,7 @@ class FunctionToken:
     name: str
     source_file: str
     source_lines: list[str]
+    called_functions: set[str]
 
 
 class FunctionNamespace(TypedDict):
@@ -40,29 +41,62 @@ class DataEntry(TypedDict):
 
 
 @dataclass
-class CompilerState:
-    compiler_flags: CompilerFlags
-    meta_variables: dict[str, int] = default_field(META_VAR_DEFAULTS)
-    function_namespaces: dict[str, FunctionNamespace] = default_field({})
-    global_namespace: dict[str, int] = default_field(GLOBAL_NAMESPACE)
+class Namespaces:
+    current_local_namespace: FunctionNamespace | None
+    local_namespaces: dict[str, FunctionNamespace] = default_field({})
     constant_namespace: dict[str, int] = default_field({})
-    string_vars: dict[int, int] = default_field({})
-    contains_return: bool = False
-    data_entries: dict[str, DataEntry] = default_field({})
-    current_address: int = LOCAL_VAR_ADDRESS
-    heap_address: int = -1
+    global_namespace: dict[str, int] = default_field(GLOBAL_NAMESPACE)
 
-    function_tokens: list[FunctionToken] = default_field([])
-    current_function_token: FunctionToken | None = None
-    called_functions: set[str] = default_field({'start', 'tick'})
 
-    function_base_registers: dict[str, int] = default_field({})
-
+@dataclass
+class InitialPassData:
+    meta_variables: dict[str, int] = default_field(META_VAR_DEFAULTS)
     included_files: set[str] = default_field(set())
-    
+    function_tokens: dict[str, FunctionToken] = default_field({})
+    data_entries: dict[str, DataEntry] = default_field({})
+    constant_namespace: dict[str, int] = default_field({})
 
-    def get_current_namespace(self):
+
+@dataclass
+class MemoryPassData:
+    meta_variables: dict[str, int]
+    constant_namespace: dict[str, int]
+    data_entries: dict[str, DataEntry]
+
+    current_address: int = LOCAL_VAR_ADDRESS
+
+    global_namespace: dict[str, int] = default_field(GLOBAL_NAMESPACE)
+    local_namespaces: dict[str, FunctionNamespace] = default_field({})
+
+    string_vars: dict[int, int] = default_field({})
+
+    include_return_subroutine: bool = False
+
+
+@dataclass
+class CodegenPassData:
+    compiler_flags: CompilerFlags
+    meta_variables: dict[str, int]
+    constant_namespace: dict[str, int]
+    global_namespace: dict[str, int]
+    local_namespaces: dict[str, FunctionNamespace]
+    string_vars: dict[int, int]
+    include_return_subroutine: bool
+
+    current_function_token: FunctionToken | None = None
+
+    function_base_registers: dict[str, int] = default_field({})    
+
+    def get_current_local_namespace(self):
         """Returns the namespace of the current function."""
         if self.current_function_token is None:
             return None
-        return self.function_namespaces[self.current_function_token.name]
+        return self.local_namespaces[self.current_function_token.name]
+
+    def get_namespaces(self):
+        return Namespaces(
+            self.get_current_local_namespace(),
+            self.local_namespaces,
+            self.constant_namespace,
+            self.global_namespace
+        )

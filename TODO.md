@@ -1,8 +1,6 @@
 # TODO
 
 ## Features
-- Preprocess listener still reserves space for variables in functions that aren't called
-- Check function call errors in preprocess instead of in codegen
 - Check if file exists for $ file loading
 - inline functions?
 - better function call register use

@@ -52,8 +52,8 @@ def error_ctx(ctx: ParserRuleContext, source_lines: list[str], message: str):
     line, column = get_ctx_pos(ctx)
     error((line-1, column), source_lines[line-1], message)
 
-def preprocess_error(message: str):
-    print(f'    {COLOR_ERROR}{message}{COLOR_RESET}')
+def generic_error(message: str):
+    print(f'{COLOR_ERROR}{message}{COLOR_RESET}')
 
     
 def is_arithmetic_register(value: str) -> bool:

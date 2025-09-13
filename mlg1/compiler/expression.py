@@ -1,25 +1,20 @@
 from collections import deque
 from antlr4.tree.Tree import TerminalNodeImpl, TerminalNode
 from mlg1.parser.mlg1Parser import mlg1Parser
-from mlg1.compiler.constants import \
-    BUILTIN_FUNCTIONS, BUILTIN_FUNCTION_ARGUMENT_COUNTS, \
-    ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
-from mlg1.compiler.util import is_integer, error_ctx, is_arithmetic_register
-from mlg1.compiler.data import CompilerState
+from mlg1.compiler.constants import BUILTIN_FUNCTIONS, ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
+from mlg1.compiler.util import is_integer, is_arithmetic_register
+from mlg1.compiler.data import Namespaces
 
 
-def _get_var_address(compiler_state: CompilerState, token, var_name: str) -> int:
-    if var_name in compiler_state.global_namespace:
-        return compiler_state.global_namespace[var_name]
+def _get_var_address(namespaces: Namespaces, var_name: str) -> int:
+    if var_name in namespaces.global_namespace:
+        return namespaces.global_namespace[var_name]
     
-    namespace = compiler_state.get_current_namespace()['locals']
+    namespace = namespaces.current_local_namespace['locals']
     if var_name in namespace:
         return namespace[var_name]
 
-    error_ctx(
-        token, compiler_state.current_function_token.source_lines,
-        f'Tried to get reference of undefined variable "{var_name}"'
-    )
+    raise ExpressionException(f'Tried to get reference of undefined variable "{var_name}"')
 
 
 OPERATORS = {
@@ -81,60 +76,42 @@ OPERATORS = {
         'unary': True
     },
     '&': {
-        'function': lambda cs, tok, a: _get_var_address(cs, tok, a),
+        'function': lambda nsp, tok, a: _get_var_address(nsp, a),
         'unary': True,
         'use_identifiers': True
     }
 }
 
 
+class ExpressionException(Exception):
+    pass
+
+
 class FunctionCallHandler:
-    def __init__(self, compiler_state: CompilerState, function_name: str, arguments: list[mlg1Parser.ExpressionContext], token: mlg1Parser.FunctionCallContext):
-        self.compiler_state = compiler_state
+    def __init__(self, namespaces: Namespaces, function_name: str, arguments: list[mlg1Parser.ExpressionContext], token: mlg1Parser.FunctionCallContext):
+        self.namespaces = namespaces
         self.function_name = function_name
         self.arguments = arguments
         self.token = token
         self.is_builtin = function_name in BUILTIN_FUNCTIONS
 
-        self.error_checks()
-
     @staticmethod
-    def from_token(compiler_state: CompilerState, token: mlg1Parser.FunctionCallContext):
+    def from_token(namespaces: Namespaces, token: mlg1Parser.FunctionCallContext):
         function_name = token.NAME().getText()
         argument_list_token = token.expressionList()
         function_args = []
         if argument_list_token is not None:
             function_args = [t for t in argument_list_token.children if isinstance(t, mlg1Parser.ExpressionContext)]
-        return FunctionCallHandler(compiler_state, function_name, function_args, token)
-    
-    def error_checks(self):
-        if self.function_name not in BUILTIN_FUNCTIONS and \
-          self.function_name not in self.compiler_state.function_namespaces:
-            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, 
-                      f'Unrecognized function "{self.function_name}"'
-            )
-        
-        if self.is_builtin:
-            amount_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[self.function_name]
-        else:
-            amount_args = self.compiler_state.function_namespaces[self.function_name]['parameter_count']
-        amount_passed_args = len(self.arguments)
-        if amount_passed_args != amount_args:
-            error_ctx(self.token, self.compiler_state.current_function_token.source_lines, 
-                      f'Expected {amount_args} arguments for function "{self.function_name}" but got {amount_passed_args}.'
-            )
+        return FunctionCallHandler(namespaces, function_name, function_args, token)
 
-    def generate_builtin(self, return_register: int, current_register: int):
+    def generate_builtin(self, return_register: int, current_register: int, current_function_name: str, function_base_registers: dict[str, int]):
         generated_lines = []
         argument_destinations = range(current_register, current_register+4)
-        builtin_arguments = {
-            'return_register': return_register,
-            'heap_address': self.compiler_state.heap_address
-        }
+        builtin_arguments = {'return_register': return_register}
 
         for i, expression_token, arg_destination in zip(range(len(self.arguments)), self.arguments, argument_destinations):
-            expression = ExpressionHandler(self.compiler_state, expression_token)
-            expression_code = expression.generate_code(arg_destination)
+            expression = ExpressionHandler(self.namespaces, expression_token)
+            expression_code = expression.generate_code(arg_destination, current_function_name, function_base_registers)
             if expression_code[-1].startswith('mov'):
                 builtin_arguments[f'a{i}'] = expression_code[-1].split(' ')[-1]  # very hacky but works (dont do this)
             else:
@@ -148,16 +125,16 @@ class FunctionCallHandler:
         generated_lines.extend(parsed_lines)
         return generated_lines
 
-    def generate_regular(self) -> list[str]:
+    def generate_regular(self, current_function_name: str, function_base_registers: dict[str, int]) -> list[str]:
         generated_lines = []
 
-        namespace = self.compiler_state.function_namespaces[self.function_name]
+        namespace = self.namespaces.local_namespaces[self.function_name]
         parameter_count = namespace['parameter_count']
         argument_destinations = list(namespace['locals'].values())[:parameter_count]  # First `parameter_count` values are the arg addresses
         
         for expression_token, destination in zip(self.arguments, argument_destinations):
-            expression = ExpressionHandler(self.compiler_state, expression_token)
-            expression_code = expression.generate_code(destination)
+            expression = ExpressionHandler(self.namespaces, expression_token)
+            expression_code = expression.generate_code(destination, current_function_name, function_base_registers)
             generated_lines.extend(expression_code)
 
         token_position = (self.token.start.line, self.token.start.column)
@@ -171,10 +148,11 @@ class FunctionCallHandler:
         generated_lines.extend(final_lines)
         return generated_lines
 
-    def generate_code(self, builtin_return_register: int, current_register: int) -> list[str]:
+    def generate_code(self, builtin_return_register: int, current_register: int, 
+                      current_function_name: str, function_base_registers: dict[str, int]) -> list[str]:
         if self.is_builtin:
-            return self.generate_builtin(builtin_return_register, current_register)
-        return self.generate_regular()
+            return self.generate_builtin(builtin_return_register, current_register, current_function_name, function_base_registers)
+        return self.generate_regular(current_function_name, function_base_registers)
 
 
 def flatten_expression(ctx: mlg1Parser.ExpressionContext) -> list:
@@ -257,11 +235,11 @@ def convert_to_rpn(tokens: list) -> list:
 
 
 class ExpressionHandler:
-    def __init__(self, compiler_state: CompilerState, ctx: mlg1Parser.ExpressionContext):
-        self.compiler_state = compiler_state
+    def __init__(self, namespaces: Namespaces, ctx: mlg1Parser.ExpressionContext):
+        self.namespaces = namespaces
         flat_expression = flatten_expression(ctx)
         rpn_expression = convert_to_rpn(flat_expression)
-        self.expression_values: list[FunctionCallHandler | str] = [parse_primary(compiler_state, t) for t in rpn_expression]
+        self.expression_values: list[FunctionCallHandler | str] = [parse_primary(namespaces, t) for t in rpn_expression]
         self.expression_values = [t for t in self.expression_values if t is not None]
         self.ctx = ctx
 
@@ -275,18 +253,18 @@ class ExpressionHandler:
                 if OPERATORS[value].get('unary') is None:
                     operand_count -= 1
                     if operand_count <= 0:
-                        error_ctx(self.ctx, self.compiler_state.current_function_token.source_lines, 'Invalid RPN expression.')
+                        raise ExpressionException('Invalid RPN expression.')
             else:
                 operand_count += 1
         if operand_count != 1:
-            error_ctx(self.ctx, self.compiler_state.current_function_token.source_lines, 'RPN expression has leftover values.')
+            raise ExpressionException('RPN expression has leftover values.')
     
     def _reduce(self):
         stack = deque()
 
         for value in self.expression_values:
             if value not in OPERATORS:
-                const_value = self.compiler_state.constant_namespace.get(value)
+                const_value = self.namespaces.constant_namespace.get(value)
                 if const_value is None:
                     added_value = value
                 else:
@@ -300,7 +278,7 @@ class ExpressionHandler:
                 if operator_data.get('unary'):
                     if operator_data.get('use_identifiers'):
                         if isinstance(b, str) and not is_integer(b):
-                            stack.append(str(operator_function(self.compiler_state, self.ctx, b)))
+                            stack.append(str(operator_function(self.namespaces, b)))
                         else:
                             stack.extend([b, value])
                     else:
@@ -318,11 +296,11 @@ class ExpressionHandler:
         self.expression_values = stack
     
 
-    def generate_code(self, destination: int) -> list[str]:
+    def generate_code(self, destination: int, current_function_name: str, function_base_registers: dict[str, int]) -> list[str]:
         base_register: int = ARITHMETIC_REGISTER_ADDRESS
         for value in self.expression_values:
             if isinstance(value, FunctionCallHandler) and not value.is_builtin:
-                index = self.compiler_state.function_base_registers[value.function_name]
+                index = function_base_registers[value.function_name]
                 if index > base_register:
                     base_register = index
         current_register = base_register
@@ -335,7 +313,7 @@ class ExpressionHandler:
                 else:
                     return_register = current_register
                     current_register += 1
-                function_call_code = value.generate_code(return_register, current_register)
+                function_call_code = value.generate_code(return_register, current_register, current_function_name, function_base_registers)
                 generated_lines.extend(function_call_code)
                 if not value.is_builtin:
                     generated_lines.append(f'mov {return_register} ${RETURN_REGISTER_ADDRESS}')
@@ -344,13 +322,11 @@ class ExpressionHandler:
             if is_integer(value):  # value is an integer
                 return value
             
-            if value in self.compiler_state.constant_namespace:  # value is a constant
-                return str(self.compiler_state.constant_namespace[value])
-            if value in self.compiler_state.global_namespace:  # value is a global variable
-                return f'${self.compiler_state.global_namespace[value]}'
-            
-            namespace = self.compiler_state.get_current_namespace()
-            return f'${namespace['locals'][value]}'  # value is a local variable
+            if value in self.namespaces.constant_namespace:  # value is a constant
+                return str(self.namespaces.constant_namespace[value])
+            if value in self.namespaces.global_namespace:  # value is a global variable
+                return f'${self.namespaces.global_namespace[value]}'
+            return f'${self.namespaces.current_local_namespace['locals'][value]}'  # value is a local variable
         
         def get_arithmetic_register(a: str, b: str) -> str:
             nonlocal current_register
@@ -403,10 +379,9 @@ class ExpressionHandler:
                 
                 stack.append(f'${register}')
         
-        current_function_name = self.compiler_state.current_function_token.name
-        base_register_value = self.compiler_state.function_base_registers.get(current_function_name)
+        base_register_value = function_base_registers.get(current_function_name)
         if base_register_value is None or current_register > base_register_value:
-            self.compiler_state.function_base_registers[current_function_name] = current_register
+            function_base_registers[current_function_name] = current_register
         
         if not generated_lines:
             return [f'mov {destination} {stack[0]}']
@@ -419,7 +394,7 @@ class ExpressionHandler:
         return generated_lines
 
 
-def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContext) -> ExpressionHandler | FunctionCallHandler | str:
+def parse_primary(namespaces: Namespaces, token: mlg1Parser.PrimaryContext) -> ExpressionHandler | FunctionCallHandler | str:
     if isinstance(token, TerminalNode):
         return None
     
@@ -428,24 +403,22 @@ def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContex
         first_child = token.children[0]
 
     if isinstance(first_child, mlg1Parser.ExpressionContext):  # Expression
-        return ExpressionHandler(compiler_state, first_child)
+        return ExpressionHandler(namespaces, first_child)
     
     if isinstance(first_child, mlg1Parser.FunctionCallContext):  # Function call
-        return FunctionCallHandler.from_token(compiler_state, first_child)
+        return FunctionCallHandler.from_token(namespaces, first_child)
     
     if isinstance(token, mlg1Parser.PrimaryContext):
         name = token.NAME()
-        function_namespace = compiler_state.get_current_namespace()
-        if function_namespace is None:
+        if namespaces.current_local_namespace is None:
             function_locals = {}
         else:
-            function_locals = function_namespace['locals']
+            function_locals = namespaces.current_local_namespace['locals']
         
         if name is not None and name.getText() not in function_locals \
-            and name.getText() not in compiler_state.global_namespace \
-            and name.getText() not in compiler_state.constant_namespace:
-            error_source_lines = compiler_state.current_function_token.source_lines
-            error_ctx(token, error_source_lines, f'Tried to reference undefined variable "{name}"')
+            and name.getText() not in namespaces.global_namespace \
+            and name.getText() not in namespaces.constant_namespace:
+            raise ExpressionException(f'Tried to reference undefined variable "{name}"')
         
         return token.getText()
 
@@ -458,3 +431,16 @@ def parse_primary(compiler_state: CompilerState, token: mlg1Parser.PrimaryContex
         return token.getText()
 
     return None
+
+
+
+def evaluate_constant_expression(constant_namespace: dict[str, int], expression_token: mlg1Parser.ExpressionContext) -> int:
+    """
+    Evaluates an expression consisting solely of integer literals and constants.
+    """
+    namespaces = Namespaces(None, constant_namespace=constant_namespace)
+    expression = ExpressionHandler(namespaces, expression_token)    
+    expression_values = expression.expression_values
+    if len(expression_values) > 1 or not is_integer(expression_values[0]):
+        raise ExpressionException('Expected only integer literals and constants in expression.')
+    return int(expression.expression_values[0])
