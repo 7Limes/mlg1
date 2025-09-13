@@ -1,12 +1,15 @@
 from collections import deque
+from antlr4 import ParserRuleContext
 from antlr4.tree.Tree import TerminalNodeImpl, TerminalNode
 from mlg1.parser.mlg1Parser import mlg1Parser
-from mlg1.compiler.constants import BUILTIN_FUNCTIONS, ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
+from mlg1.compiler.constants import \
+    BUILTIN_FUNCTIONS, BUILTIN_FUNCTION_ARGUMENT_COUNTS, \
+    ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, RETURN_REGISTER_ADDRESS
 from mlg1.compiler.util import is_integer, is_arithmetic_register
 from mlg1.compiler.data import Namespaces
 
 
-def _get_var_address(namespaces: Namespaces, var_name: str) -> int:
+def _get_var_address(namespaces: Namespaces, token: ParserRuleContext, var_name: str) -> int:
     if var_name in namespaces.global_namespace:
         return namespaces.global_namespace[var_name]
     
@@ -14,7 +17,7 @@ def _get_var_address(namespaces: Namespaces, var_name: str) -> int:
     if var_name in namespace:
         return namespace[var_name]
 
-    raise ExpressionException(f'Tried to get reference of undefined variable "{var_name}"')
+    raise ExpressionException(token, f'Tried to get reference of undefined variable "{var_name}"')
 
 
 OPERATORS = {
@@ -76,7 +79,7 @@ OPERATORS = {
         'unary': True
     },
     '&': {
-        'function': lambda nsp, tok, a: _get_var_address(nsp, a),
+        'function': lambda nsp, tok, a: _get_var_address(nsp, tok, a),
         'unary': True,
         'use_identifiers': True
     }
@@ -84,7 +87,9 @@ OPERATORS = {
 
 
 class ExpressionException(Exception):
-    pass
+    def __init__(self, token: ParserRuleContext, *args):
+        super().__init__(*args)
+        self.token = token
 
 
 class FunctionCallHandler:
@@ -94,6 +99,18 @@ class FunctionCallHandler:
         self.arguments = arguments
         self.token = token
         self.is_builtin = function_name in BUILTIN_FUNCTIONS
+        
+        self._check()
+    
+    def _check(self):
+        if self.is_builtin:
+            expected_args = BUILTIN_FUNCTION_ARGUMENT_COUNTS[self.function_name]
+        else:
+            expected_args = self.namespaces.local_namespaces[self.function_name]['parameter_count']
+        passed_args = len(self.arguments)
+        if passed_args != expected_args:
+            args_token = self.token.expressionList()
+            raise ExpressionException(args_token, f'Expected {expected_args} arguments for function "{self.function_name}" but got {passed_args}.')
 
     @staticmethod
     def from_token(namespaces: Namespaces, token: mlg1Parser.FunctionCallContext):
@@ -235,13 +252,13 @@ def convert_to_rpn(tokens: list) -> list:
 
 
 class ExpressionHandler:
-    def __init__(self, namespaces: Namespaces, ctx: mlg1Parser.ExpressionContext):
+    def __init__(self, namespaces: Namespaces, token: mlg1Parser.ExpressionContext):
         self.namespaces = namespaces
-        flat_expression = flatten_expression(ctx)
+        flat_expression = flatten_expression(token)
         rpn_expression = convert_to_rpn(flat_expression)
         self.expression_values: list[FunctionCallHandler | str] = [parse_primary(namespaces, t) for t in rpn_expression]
         self.expression_values = [t for t in self.expression_values if t is not None]
-        self.ctx = ctx
+        self.token = token
 
         self._check()
         self._reduce()
@@ -253,11 +270,11 @@ class ExpressionHandler:
                 if OPERATORS[value].get('unary') is None:
                     operand_count -= 1
                     if operand_count <= 0:
-                        raise ExpressionException('Invalid RPN expression.')
+                        raise ExpressionException(self.token, 'Invalid RPN expression.')
             else:
                 operand_count += 1
         if operand_count != 1:
-            raise ExpressionException('RPN expression has leftover values.')
+            raise ExpressionException(self.token, 'RPN expression has leftover values.')
     
     def _reduce(self):
         stack = deque()
@@ -278,7 +295,7 @@ class ExpressionHandler:
                 if operator_data.get('unary'):
                     if operator_data.get('use_identifiers'):
                         if isinstance(b, str) and not is_integer(b):
-                            stack.append(str(operator_function(self.namespaces, b)))
+                            stack.append(str(operator_function(self.namespaces, self.token, b)))
                         else:
                             stack.extend([b, value])
                     else:
@@ -418,7 +435,7 @@ def parse_primary(namespaces: Namespaces, token: mlg1Parser.PrimaryContext) -> E
         if name is not None and name.getText() not in function_locals \
             and name.getText() not in namespaces.global_namespace \
             and name.getText() not in namespaces.constant_namespace:
-            raise ExpressionException(f'Tried to reference undefined variable "{name}"')
+            raise ExpressionException(token, f'Tried to reference undefined variable "{name}"')
         
         return token.getText()
 
@@ -442,5 +459,5 @@ def evaluate_constant_expression(constant_namespace: dict[str, int], expression_
     expression = ExpressionHandler(namespaces, expression_token)    
     expression_values = expression.expression_values
     if len(expression_values) > 1 or not is_integer(expression_values[0]):
-        raise ExpressionException('Expected only integer literals and constants in expression.')
+        raise ExpressionException(expression_token, 'Expected only integer literals and constants in expression.')
     return int(expression.expression_values[0])

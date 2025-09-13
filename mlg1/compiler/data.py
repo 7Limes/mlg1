@@ -62,6 +62,7 @@ class MemoryPassData:
     meta_variables: dict[str, int]
     constant_namespace: dict[str, int]
     data_entries: dict[str, DataEntry]
+    all_function_names: set[str]
 
     current_address: int = LOCAL_VAR_ADDRESS
 

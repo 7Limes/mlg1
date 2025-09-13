@@ -20,7 +20,7 @@ from mlg1.compiler.constants import \
     RESERVED_NAMES, ENTRYPOINT_FUNCTIONS, BUILTIN_FUNCTIONS, META_VAR_DEFAULTS, \
     ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, CALL_STACK_DATA_ADDRESS, RETURN_REGISTER_ADDRESS, \
     DEFAULT_INDENT_SIZE, get_return_code
-from mlg1.compiler.util import error, generic_error, CodeWriter
+from mlg1.compiler.util import error, generic_error, get_error_string, CodeWriter
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler, ExpressionException, evaluate_constant_expression
 from mlg1.compiler.data import CodegenPassData, InitialPassData, MemoryPassData, CompilerFlags, FunctionToken
 
@@ -29,13 +29,17 @@ STDLIB_PATH = Path(__file__).parents[1] / 'stdlib'
 
 
 class CustomErrorListener(ErrorListener):
-    def __init__(self):
+    def __init__(self, source_lines: list[str]):
         super(CustomErrorListener, self).__init__()
+        
         self.errors = []
+        self.source_lines = source_lines
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        error_type = "Lexical" if isinstance(recognizer, Lexer) else "Parsing"
-        self.errors.append(f"{error_type} error at line {line}, column {column}: {msg}")
+        error_type = 'LEXING' if isinstance(recognizer, Lexer) else 'PARSING'
+        message = f'{error_type} ERROR: {msg}'
+        error_string = get_error_string((line, column), self.source_lines[line-1], message)
+        self.errors.append(error_string)
 
 
 class BaseListener(mlg1Listener):
@@ -104,6 +108,7 @@ class InitialListener(BaseListener):
         name = ctx.NAME().getText()
         path = ctx.STRING().getText()[1:-1]
         operation = ctx.FILE_OPERATION().getText()
+
         self.data.data_entries[name] = {
             'data_type': 'file',
             'operation': operation,
@@ -172,9 +177,9 @@ class MemoryListener(BaseListener):
         self.current_function_name = None
     
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
-        # TODO: check for unrecognized function
-        # TODO: check for correct number of parameters
         function_name: str = ctx.NAME().getText()
+        if function_name not in BUILTIN_FUNCTIONS and function_name not in self.data.all_function_names:
+            self.error(ctx, f'Tried to call unrecognized function "{function_name}".')
         if function_name not in ENTRYPOINT_FUNCTIONS:
             self.data.include_return_subroutine = True  # include return subroutine if a custom function is called [note 1]
         function_name = ctx.NAME().getText()
@@ -298,7 +303,7 @@ class CodegenListener(BaseListener):
                 try:
                     expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
                 except ExpressionException as e:
-                    self.error(ctx, str(e))
+                    self.error(e.token, str(e))
                 
                 expression_code = expression.generate_code(var_address, self.function_token.name, self.data.function_base_registers)
                 self.code_writer.add_lines(expression_code)
@@ -314,7 +319,7 @@ class CodegenListener(BaseListener):
         try:
             expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
         except ExpressionException as e:
-            self.error(ctx, str(e))
+            self.error(e.token, str(e))
         
         var_name = ctx.NAME().getText()
         is_global = var_name in self.data.global_namespace
@@ -336,7 +341,7 @@ class CodegenListener(BaseListener):
                 try:
                     expression = ExpressionHandler(self.data.get_namespaces(), array_value_token)
                 except ExpressionException as e:
-                    self.error(ctx, str(e))
+                    self.error(e.token, str(e))
                 expression_code = expression.generate_code(array_address+i+1, self.function_token.name, self.data.function_base_registers)
                 self.code_writer.add_lines(expression_code)
         
@@ -344,7 +349,11 @@ class CodegenListener(BaseListener):
         if isinstance(ctx.parentCtx, mlg1Parser.StatementContext):
             self._add_source_code_comment(ctx)
 
-            function_call = FunctionCallHandler.from_token(self.data.get_namespaces(), ctx)
+            try:
+                function_call = FunctionCallHandler.from_token(self.data.get_namespaces(), ctx)
+            except ExpressionException as e:
+                self.error(e.token, str(e))
+            
             function_call_code = function_call.generate_code(RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS,
                                                              self.function_token.name, self.data.function_base_registers)
             self.code_writer.add_lines(function_call_code)
@@ -356,7 +365,7 @@ class CodegenListener(BaseListener):
         try:
             expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
         except ExpressionException as e:
-            self.error(ctx, str(e))
+            self.error(e.token, str(e))
         
         expression_code = expression.generate_code(RETURN_REGISTER_ADDRESS, self.function_token.name, self.data.function_base_registers)
         self.code_writer.add_lines(expression_code)
@@ -375,11 +384,11 @@ class CodegenListener(BaseListener):
         self.code_writer.add_line(f'jmp {continue_label} 1')
 
     def generate_if_statement(self, ctx, parent_if_ctx: mlg1Parser.IfStatementContext):
-        condition_expression_token = ctx.expression()
+        condition_token = ctx.expression()
         try:
-            condition_expression = ExpressionHandler(self.data.get_namespaces(), condition_expression_token)
+            condition_expression = ExpressionHandler(self.data.get_namespaces(), condition_token)
         except ExpressionException as e:
-            self.error(ctx, str(e))
+            self.error(e.token, str(e))
         
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS, self.function_token.name, self.data.function_base_registers)
         self.code_writer.add_lines(expression_code)
@@ -427,7 +436,7 @@ class CodegenListener(BaseListener):
         try:
             condition_expression = ExpressionHandler(self.data.get_namespaces(), condition_token)
         except ExpressionException as e:
-            self.error(ctx, str(e))
+            self.error(e.token, str(e))
         
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS, self.function_token.name, self.data.function_base_registers)
         
@@ -466,7 +475,7 @@ class CodegenListener(BaseListener):
         try:
             condition_expression = ExpressionHandler(self.data.get_namespaces(), condition_token)
         except ExpressionException as e:
-            self.error(ctx, str(e))
+            self.error(e.token, str(e))
         
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS, self.function_token.name, self.data.function_base_registers)
         loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
@@ -521,7 +530,7 @@ def initial_pass(initial_pass_data: InitialPassData, file_path: str) -> Result[N
         source_lines = f.read().split('\n')
 
     # Lexing
-    error_listener = CustomErrorListener()
+    error_listener = CustomErrorListener(source_lines)
     lexer = mlg1Lexer(token_stream)
     lexer.removeErrorListeners()
     lexer.addErrorListener(error_listener)
@@ -535,8 +544,8 @@ def initial_pass(initial_pass_data: InitialPassData, file_path: str) -> Result[N
 
     if error_listener.errors:
         generic_error(f'Preprocessing errors found in {file_path}:')
-        for message in error_listener.errors:
-            generic_error(f'    {message}')
+        for error_string in error_listener.errors:
+            print(error_string)
         return Err('Preprocessing error.')
     
     walker = ParseTreeWalker()
@@ -557,10 +566,13 @@ def after_initial_pass(initial_pass_data: InitialPassData) -> list[FunctionToken
     seen_functions: set[str] = set()
     while functions_to_walk:
         function_name = functions_to_walk.pop()
-        function_token = initial_pass_data.function_tokens[function_name]
-        for called_function in function_token.called_functions:
-            if called_function not in seen_functions:
-                functions_to_walk.append(called_function)
+        function_token = initial_pass_data.function_tokens.get(function_name)
+        if function_token is not None:
+            for called_function in function_token.called_functions:
+                if called_function not in seen_functions:
+                    functions_to_walk.append(called_function)
+        # If function_token is None, then it's a call to an unrecognized 
+        # function and we'll catch this error in the memory pass
         seen_functions.add(function_name)
     
     used_function_tokens = [t for t in initial_pass_data.function_tokens.values() if t.name in seen_functions]
@@ -654,7 +666,8 @@ def main() -> int:
     memory_pass_data = MemoryPassData(
         initial_pass_data.meta_variables,
         initial_pass_data.constant_namespace,
-        initial_pass_data.data_entries
+        initial_pass_data.data_entries,
+        set(t.name for t in function_tokens)
     )
     memory_pass_result = memory_pass(memory_pass_data, function_tokens, parsed_args.output_file + 'd', compiler_flags.indent_size)
     if isinstance(memory_pass_result, Err):

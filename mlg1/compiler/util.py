@@ -39,10 +39,17 @@ def is_integer(s: str) -> bool:
     return bool(INTEGER_REGEX.match(s))
 
 
+def get_error_string(position: tuple[int, int], line_text: str, message: str) -> str:
+    return '\n'.join([
+        f'{COLOR_ERROR}{message}',
+        f'{position[0]+1} | {line_text}',
+        f'{" " * (len(str(position[0]+1))+3+position[1])}^{COLOR_RESET}'
+    ])
+
 def error(position: tuple[int, int], line_text: str, message: str):
-    print(f'{COLOR_ERROR}ERROR:', message)
-    print(f'{position[0]+1} | {line_text}')
-    print(f'{" " * (len(str(position[0]+1))+3+position[1])}^{COLOR_RESET}')
+    error_message = f'ERROR: {message}'
+    error_string = get_error_string(position, line_text, error_message)
+    print(error_string)
     sys.exit(1)
 
 def get_ctx_pos(ctx: ParserRuleContext) -> tuple[int, int]:
