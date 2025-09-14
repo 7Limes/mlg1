@@ -109,6 +109,10 @@ class InitialListener(BaseListener):
         path = ctx.STRING().getText()[1:-1]
         operation = ctx.FILE_OPERATION().getText()
 
+        parse_entry_result = parse_entry('file', operation, path)
+        if isinstance(parse_entry_result, str):
+            self.error(ctx, parse_entry_result)
+
         self.data.data_entries[name] = {
             'data_type': 'file',
             'operation': operation,
@@ -200,6 +204,11 @@ class MemoryListener(BaseListener):
                 }
             
             self.data.current_address += 1
+    
+    def enterAssignment(self, ctx):
+        name: str = ctx.NAME().getText()
+        if name in RESERVED_NAMES:
+            self.error(ctx, f'Variable name "{name}" is reserved.')
     
     def enterArrayDeclaration(self, ctx: mlg1Parser.ArrayDeclarationContext):
         size_expression_token = ctx.expression()
@@ -351,11 +360,13 @@ class CodegenListener(BaseListener):
 
             try:
                 function_call = FunctionCallHandler.from_token(self.data.get_namespaces(), ctx)
+                function_call_code = function_call.generate_code(
+                    RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS,
+                    self.function_token.name, self.data.function_base_registers
+                )
             except ExpressionException as e:
                 self.error(e.token, str(e))
             
-            function_call_code = function_call.generate_code(RETURN_REGISTER_ADDRESS, ARITHMETIC_REGISTER_ADDRESS,
-                                                             self.function_token.name, self.data.function_base_registers)
             self.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
