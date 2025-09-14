@@ -1,0 +1,162 @@
+// Bouncing ball simulation
+
+#width 256
+#height 256
+#tickrate 60
+
+define GRAVITY 30
+define SCALE 256
+define DAMPING 150
+define VELOCITY_VARIATION 100
+define BALL_SIZE 1
+define DELETE_VELOCITY 1
+
+define BALL_ARRAY_SIZE 200000
+define BALL_SPAWN_AMOUNT 100
+define MAX_BALLS 50000
+
+define RAND_MODULUS 2147483647
+define RAND_MULTIPLIER 1103515245
+define RAND_INCREMENT 1013904223
+
+
+fn next_rand() {
+    rand_value = (rand_value * RAND_MULTIPLIER + RAND_INCREMENT) % RAND_MODULUS
+    return rand_value
+}
+
+fn abs(x) {
+    return x * (2 * !(x < 0) - 1)
+}
+
+fn clamp(x, lower, upper) {
+    if x < lower {
+        return lower
+    }
+    if !(x < upper) {
+        return upper
+    }
+    return x
+}
+
+
+fn start() {
+    global rand_value = 0  // Random seed
+    global timer = 0
+
+    global ball_array[BALL_ARRAY_SIZE]
+    global ball_array_length = 0
+
+    // 0 = adding balls
+    // 1 = waiting for balls to deplete
+    global state = 0
+    global current_ball_count = 0
+}
+
+
+fn add_ball(x, y, vx, vy) {
+    let index = ball_array + ball_array_length
+    set(index, x)
+    set(index+1, y)
+    set(index+2, vx)
+    set(index+3, vy)
+    ball_array_length = ball_array_length + 4
+}
+
+
+fn update_balls() {
+    current_ball_count = 0
+    let i = 0
+    while i < ball_array_length {
+        let ball_address = ball_array+i
+        let x = get(ball_address)
+        let y = get(ball_address+1)
+        let vx = get(ball_address+2)
+        let vy = get(ball_address+3)
+
+        // Update position and velocity
+        vy = vy + GRAVITY
+        x = x + vx
+        y = y + vy
+
+        // Bounce off left and right walls
+        if x < 0 {
+            vx = abs(vx)
+        }
+        if SCALE * (WIDTH - BALL_SIZE) < x {
+            vx = -abs(vx)
+        }
+
+        // Bounce off the floor
+        let floor_height = SCALE * (HEIGHT - BALL_SIZE)
+        if floor_height < y {
+            y = floor_height
+            let new_vy = abs(vy) - DAMPING
+            if new_vy < 0 {
+                new_vy = 0
+            }
+            vy = -new_vy
+        }
+
+        if (abs(vy) < DELETE_VELOCITY) * (y == floor_height) {  // Delete the ball
+            // Move last ball to the current position
+            let last_address = ball_array + ball_array_length - 4
+            x = get(last_address)
+            y = get(last_address+1)
+            vx = get(last_address+2)
+            vy = get(last_address+3)
+            ball_array_length = ball_array_length - 4
+
+            set(ball_address, x)
+            set(ball_address+1, y)
+            set(ball_address+2, vx)
+            set(ball_address+3, vy)
+
+            i = i - 4
+        }
+        else {
+            // Rewrite new ball data
+            set(ball_address, x)
+            set(ball_address+1, y)
+            set(ball_address+2, vx)
+            set(ball_address+3, vy)
+
+            // Draw the ball
+            let r = clamp(x / 256, 0, 255)
+            let b = clamp(y / 256, 0, 255)
+            color(r, 128, b)
+            rect(x / SCALE, y / SCALE,  BALL_SIZE, BALL_SIZE)
+        }
+
+        i = i + 4
+    }
+}
+
+
+fn tick() {
+    color(0, 0, 0)
+    rect(0, 0, WIDTH, HEIGHT)
+
+    if state {
+        if ball_array_length == 0 {
+            state = 0
+        }
+    }
+    else {
+        let i = 0
+        while i < BALL_SPAWN_AMOUNT {
+            let bx = next_rand() % (WIDTH * SCALE)
+            let by = next_rand() % (HEIGHT * SCALE) / 4
+            let bvx = next_rand() % VELOCITY_VARIATION - VELOCITY_VARIATION / 2
+            let bvy = next_rand() % VELOCITY_VARIATION - VELOCITY_VARIATION / 2
+            i = i + 1
+            add_ball(bx, by, bvx, bvy)
+        }
+        if !(ball_array_length + BALL_SPAWN_AMOUNT < MAX_BALLS * 4) {
+            state = 1
+        }
+    }
+
+    update_balls()
+    print(ball_array_length / 4)
+}

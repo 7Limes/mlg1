@@ -7,39 +7,44 @@
 #memory 200
 
 
+include "wip-programs/floodfill"
+
+
 define TOOLBAR_SIZE 20
 define TOOLBAR_COLORS_X 136
 define TOOLBAR_COLORBOX_SIZE 8
 define CURSOR_SIZE 3
 
-define AMOUNT_TOOLS 2
+define AMOUNT_TOOLS 3
 define PENCIL_TOOL 0
 define BRUSH_TOOL 1
+define FILL_TOOL 2
 
-define CURSOR_BUFFER_ADDRESS 0
-
-define COLOR_ARRAY_ADDRESS 20
+define CURSOR_BUFFER_SIZE 20
 define COLOR_ARRAY_SIZE 16
 
 
 fn start() {
-    // Set colors; TODO: Make this into an array later because this sucks
-    set(COLOR_ARRAY_ADDRESS+HEAP, 0)
-    set(COLOR_ARRAY_ADDRESS+HEAP+1, 21760)
-    set(COLOR_ARRAY_ADDRESS+HEAP+2, 43520)
-    set(COLOR_ARRAY_ADDRESS+HEAP+3, 65280)
-    set(COLOR_ARRAY_ADDRESS+HEAP+4, 255)
-    set(COLOR_ARRAY_ADDRESS+HEAP+5, 22015)
-    set(COLOR_ARRAY_ADDRESS+HEAP+6, 43775)
-    set(COLOR_ARRAY_ADDRESS+HEAP+7, 65535)
-    set(COLOR_ARRAY_ADDRESS+HEAP+8, 16711680)
-    set(COLOR_ARRAY_ADDRESS+HEAP+9, 16733440)
-    set(COLOR_ARRAY_ADDRESS+HEAP+10, 16755200)
-    set(COLOR_ARRAY_ADDRESS+HEAP+11, 16776960)
-    set(COLOR_ARRAY_ADDRESS+HEAP+12, 16711935)
-    set(COLOR_ARRAY_ADDRESS+HEAP+13, 16733695)
-    set(COLOR_ARRAY_ADDRESS+HEAP+14, 16755455)
-    set(COLOR_ARRAY_ADDRESS+HEAP+15, 16777215)
+    global COLOR_ARRAY[COLOR_ARRAY_SIZE] = [
+        0,
+        21760,
+        43520,
+        65280,
+        255,
+        22015,
+        43775,
+        65535,
+        16711680,
+        16733440,
+        16755200,
+        16776960,
+        16711935,
+        16733695,
+        16755455,
+        16777215
+    ]
+
+    global cursor_buffer[CURSOR_BUFFER_SIZE]
 
     global cursor_x = HEIGHT / 2
     global cursor_y = WIDTH / 2
@@ -64,7 +69,7 @@ fn start() {
 fn draw_toolbar_colors() {
     let i = 0
     while i < COLOR_ARRAY_SIZE {
-        let pixel = get(i + COLOR_ARRAY_ADDRESS + HEAP)
+        let pixel = get(COLOR_ARRAY + i)
         let r = pixel % 256
         pixel = pixel / 256
         let g = pixel % 256
@@ -77,6 +82,9 @@ fn draw_toolbar_colors() {
         rect(box_x, box_y, TOOLBAR_COLORBOX_SIZE, TOOLBAR_COLORBOX_SIZE)
         i = i + 1
     }
+
+    color(color_r, color_g, color_b)
+    rect(118, 0, TOOLBAR_SIZE-4, TOOLBAR_SIZE-4)
 }
 
 fn draw_toolbar() {
@@ -87,12 +95,13 @@ fn draw_toolbar() {
     line(0, TOOLBAR_SIZE-1, WIDTH, TOOLBAR_SIZE-1)
 
     // Draw tools background
-    rect(0, 0, TOOLBAR_SIZE*2-1, TOOLBAR_SIZE)
+    rect(0, 0, TOOLBAR_SIZE*AMOUNT_TOOLS-AMOUNT_TOOLS+1, TOOLBAR_SIZE)
 
     // Draw tools inside rectangles
     color(150, 150, 150)
     rect(1, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
     rect(20, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
+    rect(39, 1, TOOLBAR_SIZE-2, TOOLBAR_SIZE-2)
 
     // Change tool bg color if that tool is selected
     let current_tool_box_x = current_tool * (TOOLBAR_SIZE - 1)
@@ -108,25 +117,36 @@ fn draw_toolbar() {
     let brush_rect_y = 10 - (brush_size / 2)
     rect(brush_rect_x, brush_rect_y, brush_size, brush_size)
 
+    // Draw fill icon
+    line(44, 4, 44, 15)
+    line(44, 4, 50, 4)
+    line(44, 9, 48, 9)
+
 
     draw_toolbar_colors()
 }
 
 
 fn copy_cursor_pixels() {
-    let buffer = CURSOR_BUFFER_ADDRESS + HEAP
+    let buffer = cursor_buffer
     let pixel = 0
     let i = 0
     while i < CURSOR_SIZE * 2 + 1 {
-        pixel = getpixel(cursor_x, cursor_y - CURSOR_SIZE + i)
-        set(buffer, pixel)
+        let get_y = cursor_y - CURSOR_SIZE + i
+        if !(get_y < 0) * (get_y < HEIGHT) {
+            pixel = getpixel(cursor_x, get_y)
+            set(buffer, pixel)
+        }
         i = i + 1
         buffer = buffer + 1
     }
     i = 0
     while i < CURSOR_SIZE * 2 + 1 {
-        pixel = getpixel(cursor_x - CURSOR_SIZE + i, cursor_y)
-        set(buffer, pixel)
+        let get_x = cursor_x - CURSOR_SIZE + i
+        if !(get_x < 0) * (get_x < WIDTH) {
+            pixel = getpixel(get_x, cursor_y)
+            set(buffer, pixel)
+        }
         i = i + 1
         buffer = buffer + 1
     }
@@ -134,7 +154,7 @@ fn copy_cursor_pixels() {
 }
 
 fn paste_cursor_pixels() {
-    let buffer = CURSOR_BUFFER_ADDRESS + HEAP
+    let buffer = cursor_buffer
     let pixel = 0
     let r = 0
     let g = 0
@@ -200,13 +220,28 @@ fn use_brush_tool() {
 }
 
 
+fn use_fill_tool() {
+    let replace_color = getpixel(cursor_x, cursor_y)
+    let current_color = color_r + color_g * 256 + color_b * 65536
+    flood_fill(cursor_x, cursor_y, replace_color, current_color)
+    copy_cursor_pixels()
+}
+
+
 fn use_tool() {
-    if current_tool == PENCIL_TOOL {
-        use_pencil_tool()
+    if A {
+        if current_tool == PENCIL_TOOL {
+            use_pencil_tool()
+        }
+        else if current_tool == BRUSH_TOOL {
+            use_brush_tool()
+        }
+        else if !prev_A * (current_tool == FILL_TOOL) {
+            use_fill_tool()
+        }
     }
-    else { if current_tool == BRUSH_TOOL {
-        use_brush_tool()
-    }}
+
+    let prev_A = A
 }
 
 
@@ -247,9 +282,7 @@ fn tick() {
         click_toolbar()
     }
     else {
-        if A {
-            use_tool()
-        }
+        use_tool()
     }
 
     draw_toolbar()

@@ -1,7 +1,9 @@
+// Simple snake game implementation
+// By Miles Burkart
+
 #width 20
 #height 20
 #tickrate 60
-#memory 400
 
 
 define SNAKE_MOVE_TIME 10
@@ -26,7 +28,7 @@ fn start() {
     global apple_x = 14
     global apple_y = 9
 
-    global snake_segments_start = HEAP
+    global snake_segments[500]
     global snake_segments_length = 0
 
     global score = 0
@@ -83,11 +85,11 @@ fn check_eat_apple() {
 
 fn remove_last_segment() {
     // Shift everything left by 2
-    let segment_address = snake_segments_start
+    let segment_address = snake_segments
     let i = 0
     let loop_end = snake_segments_length - 2
     while i < loop_end {
-        segment_address = snake_segments_start+i
+        segment_address = snake_segments+i
         let shifted_value = get(segment_address+2)
         set(segment_address, shifted_value)
         i = i + 1
@@ -99,8 +101,8 @@ fn remove_last_segment() {
 fn check_collisions() {
     let i = 0
     while i < snake_segments_length {
-        let segment_x = get(snake_segments_start+i)
-        let segment_y = get(snake_segments_start+i+1)
+        let segment_x = get(snake_segments+i)
+        let segment_y = get(snake_segments+i+1)
         if (segment_x == snake_head_x) * (segment_y == snake_head_y) {
             start()
             i = 99999  // break out
@@ -111,7 +113,7 @@ fn check_collisions() {
 
 
 fn move_snake() {
-    let snake_segments_end = snake_segments_start + snake_segments_length
+    let snake_segments_end = snake_segments + snake_segments_length
     set(snake_segments_end, snake_head_x)
     set(snake_segments_end+1, snake_head_y)
     snake_segments_length = snake_segments_length + 2
@@ -135,8 +137,8 @@ fn move_snake() {
         snake_add_segments = snake_add_segments - 1
     }
     else {
-        let segment_x = get(snake_segments_start)
-        let segment_y = get(snake_segments_start+1)
+        let segment_x = get(snake_segments)
+        let segment_y = get(snake_segments+1)
         color(0, 0, 0)
         point(segment_x, segment_y)
         remove_last_segment()
