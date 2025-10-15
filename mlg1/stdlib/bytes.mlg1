@@ -1,0 +1,68 @@
+// Iterator functions for packed bytes.
+
+// Return the next byte as an unsigned 8-bit integer and advance.
+fn packit_next_u8(bytes, p_index) {
+    let index = get(p_index)
+    let chunk = get(bytes + index / 4)
+
+    let DIVISORS[4] = [16777216, 65536, 256, 1]
+    let chunk_divisor = get(DIVISORS + index % 4)
+    let division_result = chunk / chunk_divisor
+    if (division_result < 0) * (chunk % chunk_divisor) {
+        division_result = division_result - 1
+    }
+    let u8_value = division_result % 256
+
+    set(p_index, index+1)
+
+    return u8_value
+}
+
+
+// Return the next 2 bytes as an unsigned 16-bit integer and advance.
+fn packit_next_u16(bytes, p_index) {
+    let high = packit_next_u8(bytes, p_index)
+    let low = packit_next_u8(bytes, p_index)
+    return high * 256 + low
+}
+
+
+// Return the next 2 bytes as a signed 16-bit integer and advance.
+fn packit_next_s16(bytes, p_index) {
+    let high = packit_next_u8(bytes, p_index)
+    let low = packit_next_u8(bytes, p_index)
+    let negate = (high > 127) * -1 + (high < 128) 
+    return high * negate * 256 + low
+}
+
+
+// Return the next 3 bytes as a signed 24-bit integer and advance.
+fn packit_next_s24(bytes, p_index) {
+    let b1 = packit_next_u8(bytes, p_index)
+    let b2 = packit_next_u8(bytes, p_index)
+    let b3 = packit_next_u8(bytes, p_index)
+    let negate = (b1 > 127) * -1 + (b1 < 128) 
+    return b1 * negate * 65536 + b2 * 256 + b3
+}
+
+
+
+// Return the next 3 bytes as an unsigned 24-bit integer and advance.
+fn packit_next_u24(bytes, p_index) {
+    let b1 = packit_next_u8(bytes, p_index)
+    let b2 = packit_next_u8(bytes, p_index)
+    let b3 = packit_next_u8(bytes, p_index)
+    return b1 * 65536 + b2 * 256 + b3
+}
+
+
+
+// Return the next 4 bytes as a signed 32-bit integer and advance.
+fn packit_next_s32(bytes, p_index) {
+    let b1 = packit_next_u8(bytes, p_index)
+    let b2 = packit_next_u8(bytes, p_index)
+    let b3 = packit_next_u8(bytes, p_index)
+    let b4 = packit_next_u8(bytes, p_index)
+    let negate = (b1 > 127) * -1 + (b1 < 128) 
+    return b1 * negate * 16777216 + b2 * 65536 + b3 * 256 + b4
+}
