@@ -69,6 +69,9 @@ BUILTIN_FUNCTIONS = {
     ],
     'getpixel': [
         'getp {return_register} {a0} {a1}'
+    ],
+    'setchannel': [
+        'setch {a0} {a1} {a2} {a3}'
     ]
 }
 
@@ -80,7 +83,8 @@ BUILTIN_FUNCTION_ARGUMENT_COUNTS = {
     'get': 1,
     'set': 2,
     'print': 1,
-    'getpixel': 2
+    'getpixel': 2,
+    'setchannel': 4
 }
 
 
