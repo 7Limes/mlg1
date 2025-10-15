@@ -1,6 +1,7 @@
 # TODO
 
 ## Features
+- const arrays that are stored as data entries
 - inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register
@@ -11,6 +12,7 @@
 
 
 ## Bugs
+- trying to assign before declaration doesnt have a proper error message
 - compiler should throw an error when you try to reference an undefined var, but it doesn't
 - function calls within expressions may fail at times
   - if a function is called from 2 different locations, the registers it uses may conflict with the expression's registers
