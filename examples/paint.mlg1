@@ -7,7 +7,8 @@
 #memory 200
 
 
-include "wip-programs/floodfill"
+include "color"
+include "floodfill"
 
 
 define TOOLBAR_SIZE 20
@@ -70,15 +71,10 @@ fn draw_toolbar_colors() {
     let i = 0
     while i < COLOR_ARRAY_SIZE {
         let pixel = get(COLOR_ARRAY + i)
-        let r = pixel % 256
-        pixel = pixel / 256
-        let g = pixel % 256
-        pixel = pixel / 256
-        let b = pixel % 256
+        unpack_color(pixel)
 
         let box_x = TOOLBAR_COLORBOX_SIZE * i  % (TOOLBAR_COLORBOX_SIZE * 8) + TOOLBAR_COLORS_X
         let box_y = i / (COLOR_ARRAY_SIZE / 2) * TOOLBAR_COLORBOX_SIZE
-        color(r, g, b)
         rect(box_x, box_y, TOOLBAR_COLORBOX_SIZE, TOOLBAR_COLORBOX_SIZE)
         i = i + 1
     }
@@ -162,12 +158,7 @@ fn paste_cursor_pixels() {
     let i = 0
     while i < CURSOR_SIZE * 2 + 1 {
         pixel = get(buffer)
-        r = pixel % 256
-        pixel = pixel / 256
-        g = pixel % 256
-        pixel = pixel / 256
-        b = pixel % 256
-        color(r, g, b)
+        unpack_color(pixel)
         point(cursor_x, cursor_y - CURSOR_SIZE + i)
         i = i + 1
         buffer = buffer + 1
@@ -175,12 +166,7 @@ fn paste_cursor_pixels() {
     i = 0
     while i < CURSOR_SIZE * 2 + 1 {
         pixel = get(buffer)
-        r = pixel % 256
-        pixel = pixel / 256
-        g = pixel % 256
-        pixel = pixel / 256
-        b = pixel % 256
-        color(r, g, b)
+        unpack_color(pixel)
         point(cursor_x - CURSOR_SIZE + i, cursor_y)
         i = i + 1
         buffer = buffer + 1
@@ -248,11 +234,7 @@ fn use_tool() {
 fn click_toolbar() {
     if A * (TOOLBAR_COLORS_X < cursor_x) * (cursor_y < TOOLBAR_SIZE - 4) {
         let pixel = getpixel(cursor_x, cursor_y)
-        color_r = pixel % 256
-        pixel = pixel / 256
-        color_g = pixel % 256
-        pixel = pixel / 256
-        color_b = pixel % 256
+        unpack_color_into(&color_r, &color_g, &color_b, pixel)
     }
 }
 
