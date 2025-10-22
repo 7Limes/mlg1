@@ -1,7 +1,10 @@
 # TODO
 
 ## Features
-- const arrays that are stored as data entries
+- Make the user pass in all files to compile instead of having the compiler find them
+  - this is better because users won't have to compile from a specific directory every time
+  - And the initial listener won't have to raise file not found errors
+- Const arrays stored as data entries
 - inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register
