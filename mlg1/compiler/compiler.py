@@ -246,10 +246,14 @@ class CodegenListener(BaseListener):
         self.for_loop_end_stack: deque[tuple[str, mlg1Parser.AssignmentContext]] = []
     
     
-    def _get_var_address(self, var_name: str, is_global: bool) -> int:
+    def _get_var_address(self, ctx: ParserRuleContext, var_name: str, is_global: bool) -> int:
         if is_global:
             return self.data.global_namespace[var_name]
+        
         namespace = self.data.get_current_local_namespace()
+        if var_name not in namespace['locals']:
+            self.error(ctx, f'Tried to reference undefined variable "{var_name}".')
+        
         return namespace['locals'][var_name]
 
 
@@ -303,7 +307,7 @@ class CodegenListener(BaseListener):
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
         for declared_var_token in ctx.declaredVariablesList().declaredVariable():
             var_name = declared_var_token.NAME().getText()
-            var_address = self._get_var_address(var_name, is_global)
+            var_address = self._get_var_address(ctx, var_name, is_global)
             if declared_var_token.STRING():
                 string_address = self.data.string_vars[var_address]
                 self.code_writer.add_line(f'mov {var_address} {string_address}')
@@ -332,7 +336,8 @@ class CodegenListener(BaseListener):
         
         var_name = ctx.NAME().getText()
         is_global = var_name in self.data.global_namespace
-        expression_code = expression.generate_code(self._get_var_address(var_name, is_global), self.function_token.name, self.data.function_base_registers)
+        destination = self._get_var_address(ctx, var_name, is_global)
+        expression_code = expression.generate_code(destination, self.function_token.name, self.data.function_base_registers)
         self.code_writer.add_lines(expression_code)
     
     def enterArrayDeclaration(self, ctx):
@@ -340,7 +345,7 @@ class CodegenListener(BaseListener):
 
         var_name = ctx.NAME().getText()
         is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
-        array_address = self._get_var_address(var_name, is_global)
+        array_address = self._get_var_address(ctx, var_name, is_global)
         self.code_writer.add_line(f'mov {array_address} {array_address+1}')
 
         initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.expressionList()
