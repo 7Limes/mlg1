@@ -2,7 +2,7 @@
 
 
 define __RAND_MODULUS 2147483647
-define __RAND_MULTIPLIER 784588716
+define __RAND_MULTIPLIER 1583458089
 
 
 // Returns `x` clamped to [`lower`, `upper`]
