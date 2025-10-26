@@ -19,7 +19,7 @@ from mlg1.parser.mlg1Parser import mlg1Parser
 from mlg1.compiler.constants import \
     RESERVED_NAMES, ENTRYPOINT_FUNCTIONS, BUILTIN_FUNCTIONS, META_VAR_DEFAULTS, \
     ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, CALL_STACK_DATA_ADDRESS, RETURN_REGISTER_ADDRESS, \
-    DEFAULT_INDENT_SIZE, get_return_code
+    DEFAULT_INDENT_SIZE, get_return_routine
 from mlg1.compiler.util import error, generic_error, get_error_string, CodeWriter
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler, ExpressionException, evaluate_constant_expression
 from mlg1.compiler.data import CodegenPassData, InitialPassData, MemoryPassData, CompilerFlags, FunctionToken
@@ -644,7 +644,7 @@ def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter, fu
         code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
     
     if codegen_pass_data.include_return_subroutine:
-        code_writer.add_lines(get_return_code(codegen_pass_data.compiler_flags.indent_size))
+        code_writer.add_lines(get_return_routine(codegen_pass_data.compiler_flags.indent_size))
     walker = ParseTreeWalker()
 
     # Walk through each function with the codegen listener

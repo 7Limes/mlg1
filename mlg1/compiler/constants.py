@@ -6,15 +6,16 @@ RETURN_ARITHMETIC_ADDRESS = 16
 ARITHMETIC_REGISTER_ADDRESS = 17
 AMOUNT_ARITHMETIC_REGISTERS = 15
 
-CALL_STACK_DATA_ADDRESS = 32
+CALL_STACK_DATA_ADDRESS = ARITHMETIC_REGISTER_ADDRESS + AMOUNT_ARITHMETIC_REGISTERS
+CALL_STACK_SIZE = 32
 
-LOCAL_VAR_ADDRESS = 64
+LOCAL_VAR_ADDRESS = CALL_STACK_DATA_ADDRESS + CALL_STACK_SIZE
 
 
 DEFAULT_INDENT_SIZE = 4
 
 
-RETURN_CODE_TEMPLATE = [
+RETURN_ROUTINE_TEMPLATE = [
     'return:',
     f'{{ws}}sub {CALL_STACK_POINTER_ADDRESS} ${CALL_STACK_POINTER_ADDRESS} 1',
     f'{{ws}}movp {RETURN_ARITHMETIC_ADDRESS} ${CALL_STACK_POINTER_ADDRESS}',
@@ -88,11 +89,11 @@ BUILTIN_FUNCTION_ARGUMENT_COUNTS = {
 }
 
 
-def get_return_code(indent_size: int) -> list[str]:
+def get_return_routine(indent_size: int) -> list[str]:
     """
     Generates the return subroutine.
     """
     return list(map(
         lambda s: s.format(ws=f'{" "*indent_size}'),
-        RETURN_CODE_TEMPLATE
+        RETURN_ROUTINE_TEMPLATE
     ))
