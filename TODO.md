@@ -5,6 +5,8 @@
   - this is better because users won't have to compile from a specific directory every time
   - And the initial listener won't have to raise file not found errors
 - Const arrays stored as data entries
+- Use function call tree to optimize local var allocation
+  - Any two functions that are not present in the same branch may share local var space
 - inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register
