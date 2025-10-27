@@ -1,0 +1,48 @@
+// Implementation for pseudo-floating point numbers
+
+include "math"
+include "output"
+
+
+fn set_float_scale(scale) {
+    global __float_scale = scale
+    global __float_scale_log10 = ilog(10, __float_scale)
+}
+
+
+fn float(whole, decimal) {
+    return whole * __float_scale + decimal
+}
+
+
+fn fmul(a, b) {
+    return a * b / __float_scale
+}
+
+
+fn fdiv(a, b) {
+    return a * __float_scale / b
+}
+
+
+// Output functions
+
+fn print_float(x) {
+    let whole = x / __float_scale
+    let decimal = x % __float_scale
+    print_int(whole)
+    putchar(46)  // Decimal point
+
+    let decimal_log10 = ilog(10, decimal)
+    let zero_padding = -decimal_log10 + __float_scale_log10 - 1
+    for (let i = 0; i < zero_padding; i=i+1) {
+        putchar(48)
+    }
+    print_int(decimal)
+}
+
+
+fn println_float(x) {
+    print_float(x)
+    putchar(10)
+}
