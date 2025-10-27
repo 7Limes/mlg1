@@ -1,0 +1,29 @@
+include "string"
+
+
+fn print_str(s) {
+    let s_end = s + get(s) + 1
+    for (let p = s+1; p < s_end; p=p+1) {
+        let char = get(p)
+        putchar(char)
+    }
+}
+
+
+fn print_int(x) {
+    let buffer[12]
+    int_to_str(buffer, x)
+    print_str(buffer)
+}
+
+
+fn println_str(s) {
+    print_str(s)
+    putchar(10)
+}
+
+
+fn println_int(x) {
+    print_int(x)
+    putchar(10)
+}

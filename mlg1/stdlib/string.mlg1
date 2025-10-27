@@ -30,6 +30,7 @@ fn int_to_str(buffer, x) {
 }
 
 
+// Copy no more than `n` characters of `src` into `dest`.
 fn strncpy(dest, src, n) {
     let src_length = get(src)
     let iterations = min(src_length, n)
@@ -46,6 +47,7 @@ fn strncpy(dest, src, n) {
 }
 
 
+// Concatenate no more than `n` characters of `s2` onto `s1`
 fn strncat(s1, s2, n) {
     let s1_length = get(s1)
     let s2_length = get(s2)
@@ -63,6 +65,7 @@ fn strncat(s1, s2, n) {
 }
 
 
+// Copy a substring of `src` into `dest`
 fn substr(dest, src, start_index, end_index) {
     if start_index > end_index {
         return -1
