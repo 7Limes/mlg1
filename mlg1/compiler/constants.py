@@ -65,8 +65,8 @@ BUILTIN_FUNCTIONS = {
     'set': [
         'mov {a0} {a1}'
     ],
-    'print': [
-        'log {a0}'
+    'putchar': [
+        'putc {a0}'
     ],
     'getpixel': [
         'getp {return_register} {a0} {a1}'
@@ -83,7 +83,7 @@ BUILTIN_FUNCTION_ARGUMENT_COUNTS = {
     'rect': 4,
     'get': 1,
     'set': 2,
-    'print': 1,
+    'putchar': 1,
     'getpixel': 2,
     'setchannel': 4
 }
