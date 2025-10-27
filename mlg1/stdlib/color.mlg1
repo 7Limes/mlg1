@@ -25,3 +25,54 @@ fn unpack_color_into(p_r, p_g, p_b, packed_color) {
     packed_color = packed_color / 256
     set(p_b, packed_color % 256)
 }
+
+
+// Convert hsv color to srgb color.
+// `h`: [0, 360)
+// `s`: [0, 100]
+// `v`: [0, 100]
+fn hsv_to_rgb(p_r, p_g, p_b, h, s, v) {
+    h = h % 360
+    let sector = h / 60
+    let sector_pos = h % 60
+    let v_scaled = v * 255
+    let p = v_scaled * (100 - s) / 100
+    let q = v_scaled * (6000 - s * sector_pos) / 6000
+    let t = v_scaled * (6000 - s * (60 - sector_pos)) / 6000
+
+    let r, g, b
+    if sector == 0 {
+        r = v_scaled
+        g = t
+        b = p
+    }
+    else if sector == 1 {
+        r = q
+        g = v_scaled
+        b = p
+    }
+    else if sector == 2 {
+        r = p
+        g = v_scaled
+        b = t   
+    }
+    else if sector == 3 {
+        r = p
+        g = q
+        b = v_scaled
+    }
+    else if sector == 4 {
+        r = t
+        g = p
+        b = v_scaled
+    }
+    else {
+        r = v_scaled
+        g = p
+        b = q
+    }
+    
+    set(p_r, r / 100)
+    set(p_g, g / 100)
+    set(p_b, b / 100)
+}
