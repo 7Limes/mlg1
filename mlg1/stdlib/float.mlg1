@@ -25,6 +25,44 @@ fn fdiv(a, b) {
 }
 
 
+fn fsin(x) {
+    let PI = 31415 * __float_scale / 10000
+    let TWO_PI = 62831 * __float_scale / 10000
+
+    // Normalize to [0, 2*pi]
+    while x >= TWO_PI {
+        x = x - TWO_PI
+    }
+    while x < 0 {
+        x = x + TWO_PI
+    }
+
+    // Normalize to [-pi, pi]
+    if x > PI {
+        x = x - TWO_PI
+    }
+
+    let result = 0
+    let term = x
+    let x_squared = x * x / __float_scale
+
+    for (let n = 0; n < 10; n=n+1) {
+        result = result + term
+
+        term = term * x_squared / __float_scale
+        term = -term
+        let denominator = (2 * n + 2) * (2 * n + 3)
+        term = term / denominator
+
+        if term == 0 {
+            break
+        }
+    }
+
+    return result
+}
+
+
 // Output functions
 
 fn print_float(x) {
