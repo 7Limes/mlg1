@@ -71,7 +71,10 @@ fn print_float(x) {
     print_int(whole)
     putchar(46)  // Decimal point
 
-    let decimal_log10 = ilog(10, decimal)
+    let decimal_log10 = 1
+    if decimal != 0 {
+        decimal_log10 = ilog(10, decimal)
+    }
     let zero_padding = -decimal_log10 + __float_scale_log10 - 1
     for (let i = 0; i < zero_padding; i=i+1) {
         putchar(48)
