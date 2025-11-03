@@ -30,12 +30,7 @@ fn fsin(x) {
     let TWO_PI = 62831 * __float_scale / 10000
 
     // Normalize to [0, 2*pi]
-    while x >= TWO_PI {
-        x = x - TWO_PI
-    }
-    while x < 0 {
-        x = x + TWO_PI
-    }
+    x = x % TWO_PI
 
     // Normalize to [-pi, pi]
     if x > PI {
