@@ -46,7 +46,6 @@ fn packit_next_s24(bytes, p_index) {
 }
 
 
-
 // Return the next 3 bytes as an unsigned 24-bit integer and advance.
 fn packit_next_u24(bytes, p_index) {
     let b1 = packit_next_u8(bytes, p_index)
@@ -54,7 +53,6 @@ fn packit_next_u24(bytes, p_index) {
     let b3 = packit_next_u8(bytes, p_index)
     return b1 * 65536 + b2 * 256 + b3
 }
-
 
 
 // Return the next 4 bytes as a signed 32-bit integer and advance.
