@@ -15,6 +15,8 @@
 
 - Option to include user-written comments in generated code
 
+## Refactors
+- Organize constants.py
 
 ## Bugs
 - trying to assign before declaration doesnt have a proper error message

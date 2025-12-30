@@ -9,7 +9,6 @@ import sys
 import os
 import argparse
 from collections import deque
-from result import Result, Ok, Err
 from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from g1asm.data import parse_entry
@@ -26,6 +25,12 @@ from mlg1.compiler.data import CodegenPassData, InitialPassData, MemoryPassData,
 
 from pathlib import Path
 STDLIB_PATH = Path(__file__).parents[1] / 'stdlib'
+
+
+class Mlg1CompilerError(Exception):
+    """
+    Exception class for compiler errors.
+    """
 
 
 class CustomErrorListener(ErrorListener):
@@ -85,19 +90,19 @@ class InitialListener(BaseListener):
             self.data.included_files.add(file_path)
 
             # Try to include normally
-            initial_pass_result = initial_pass(self.data, file_path)
-            if isinstance(initial_pass_result, Ok):
+            try:
+                initial_pass(self.data, file_path)
                 return
-            original_err_message = initial_pass_result.err_value
-            
+            except Mlg1CompilerError as e:
+                original_error = e
+
             # Try to include from stdlib
-            stdlib_file_path = str(STDLIB_PATH / include_path) + '.mlg1'
-            initial_pass_result = initial_pass(self.data, stdlib_file_path)
-            if isinstance(initial_pass_result, Ok):
-                return
-            
-            # Failed to include
-            self.error(ctx, original_err_message)
+            try:
+                stdlib_file_path = str(STDLIB_PATH / include_path) + '.mlg1'
+                initial_pass(self.data, stdlib_file_path)
+            except Mlg1CompilerError as e:
+                # Failed to include
+                self.error(ctx, str(original_error))
 
     def enterMetaVariable(self, ctx: mlg1Parser.MetaVariableContext):
         name = ctx.META_VARIABLE_NAME().getText()
@@ -534,12 +539,12 @@ class CodegenListener(BaseListener):
                 self.code_writer.add_line(popped)
 
 
-def initial_pass(initial_pass_data: InitialPassData, file_path: str) -> Result[None, str]:
+def initial_pass(initial_pass_data: InitialPassData, file_path: str):
     """
     Records functions, constants, meta vars, and loads files.
     """
     if not os.path.isfile(file_path):
-        return Err(f'Path "{file_path}" does not exist or is not a file.')
+        raise Mlg1CompilerError(f'Path "{file_path}" does not exist or is not a file.')
     
     token_stream = FileStream(file_path)
     with open(file_path, 'r') as f:
@@ -562,14 +567,12 @@ def initial_pass(initial_pass_data: InitialPassData, file_path: str) -> Result[N
         generic_error(f'Preprocessing errors found in {file_path}:')
         for error_string in error_listener.errors:
             print(error_string)
-        return Err('Preprocessing error.')
+        raise Mlg1CompilerError('Preprocessing error.')
     
     walker = ParseTreeWalker()
     source_file = os.path.splitext(os.path.basename(file_path))[0]
     listener = InitialListener(initial_pass_data, source_lines, source_file)
     walker.walk(listener, program_token)
-
-    return Ok(None)
 
 
 def after_initial_pass(initial_pass_data: InitialPassData) -> list[FunctionToken]:
@@ -595,7 +598,7 @@ def after_initial_pass(initial_pass_data: InitialPassData) -> list[FunctionToken
     return used_function_tokens
 
 
-def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[FunctionToken], data_file_path: str, data_file_indent_size: int) -> Result[None, str]:
+def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[FunctionToken], data_file_path: str, data_file_indent_size: int):
     """
     Determines the memory layout of everything in the program.
     """
@@ -613,7 +616,7 @@ def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[Function
 
         parse_entry_result = parse_entry(data_type, operation, data)
         if isinstance(parse_entry_result, str):
-            return Err(parse_entry_result)
+            raise Mlg1CompilerError(parse_entry_result)
         entry_size = len(parse_entry_result)
 
         data_file_rules.append(f'{memory_pass_data.current_address}: {data_type} {operation} {data}')
@@ -631,8 +634,6 @@ def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[Function
         data_file_cw = CodeWriter(data_file_indent_size)
         data_file_cw.add_lines(data_file_rules)
         data_file_cw.write_file(data_file_path)
-
-    return Ok(None)
 
 
 def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter, function_tokens: list[FunctionToken]):
@@ -671,11 +672,13 @@ def main() -> int:
     compiler_flags = CompilerFlags(parsed_args.include_source, parsed_args.indent_size)
     
     # Initial pass
-    initial_pass_data = InitialPassData()
-    initial_pass_result = initial_pass(initial_pass_data, parsed_args.input_file)
-    if isinstance(initial_pass_result, Err):
-        print(initial_pass_result.err_value)
+    try:
+        initial_pass_data = InitialPassData()
+        initial_pass(initial_pass_data, parsed_args.input_file)
+    except Mlg1CompilerError as e:
+        print(e)
         return 2
+    
     function_tokens = after_initial_pass(initial_pass_data)
 
     # Memory layout pass
@@ -685,9 +688,11 @@ def main() -> int:
         initial_pass_data.data_entries,
         set(t.name for t in function_tokens)
     )
-    memory_pass_result = memory_pass(memory_pass_data, function_tokens, parsed_args.output_file + 'd', compiler_flags.indent_size)
-    if isinstance(memory_pass_result, Err):
-        print(memory_pass_result.err_value)
+
+    try:
+        memory_pass(memory_pass_data, function_tokens, parsed_args.output_file + 'd', compiler_flags.indent_size)
+    except Mlg1CompilerError as e:
+        print(e)
         return 3
 
     # Codegen pass
