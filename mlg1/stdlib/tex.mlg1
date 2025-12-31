@@ -7,7 +7,6 @@ define TEXT_ALIGN_CENTER -2
 define TEXT_ALIGN_RIGHT -1
 
 
-
 // Draw a full texture.
 fn draw_texture(address, x, y) {
     let img_width = get(address)

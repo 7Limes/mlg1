@@ -3,10 +3,13 @@
 include "math"
 include "output"
 
+global __float_scale = 100
+global __float_scale_log10 = 2
+
 
 fn set_float_scale(scale) {
-    global __float_scale = scale
-    global __float_scale_log10 = ilog(10, __float_scale)
+    __float_scale = scale
+    __float_scale_log10 = ilog(10, __float_scale)
 }
 
 

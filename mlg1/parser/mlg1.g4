@@ -23,12 +23,14 @@ headerStatement
     | includeFile
     | loadFile
     | constantDefinition
+    | globalVarDeclaration
+    | globalArrayDeclaration
     ;
 
 statement
-    : variableDeclaration
+    : localVarDeclaration
     | assignment
-    | arrayDeclaration
+    | localArrayDeclaration
     | functionCall
     | returnStatement
     | breakStatement
@@ -38,28 +40,31 @@ statement
     | forLoop
     ;
 
-variableDeclaration: VARIABLE_KEYWORD declaredVariablesList;
+// Variable declaration and assignment 
+globalVarDeclaration: 'global' declaredVariablesList;
+localVarDeclaration: 'let' declaredVariablesList;
 declaredVariablesList: declaredVariable (',' declaredVariable)*;
 declaredVariable: NAME ('=' (expression | STRING))?;
 
 assignment: NAME '=' expression;
 
-arrayDeclaration: VARIABLE_KEYWORD NAME '[' expression ']' ('=' '[' expressionList? ']')?;
+// Array declarations
+globalArrayDeclaration: 'global' NAME '[' expression ']' ('=' '[' expressionList? ']')?;
+localArrayDeclaration: 'let' NAME '[' expression ']' ('=' '[' expressionList? ']')?;
 
+// Conditionals
 ifStatement: 'if' expression block elseIfClause* elseClause?;
-
 elseIfClause: 'else' 'if' expression block;
-
 elseClause: 'else' block;
 
+// Loops
 whileLoop: 'while' expression block;
-
-forLoop: 'for' '(' (variableDeclaration | assignment)? ';' expression ';' assignment ')' block;
+forLoop: 'for' '(' (localVarDeclaration | assignment)? ';' expression ';' assignment ')' block;
+breakStatement: 'break';
+continueStatement: 'continue';
 
 returnStatement: 'return' expression;
 
-breakStatement: 'break';
-continueStatement: 'continue';
 
 functionCall: NAME '(' expressionList? ')';
 expressionList: expression (',' expression)*;
@@ -71,9 +76,7 @@ expression
     | '(' expression ')'
     ;
 
-unaryExpression
-    : unaryOperator expression
-    ;
+unaryExpression: unaryOperator expression;
 
 primary
     : NAME
@@ -101,7 +104,6 @@ operator
     | '!='
     ;
 
-VARIABLE_KEYWORD: ('let' | 'global');
 NAME: [a-zA-Z_][a-zA-Z0-9_]*;
 INTEGER: [0-9]+;
 STRING: '"' ( ESC | ~["\r\n\\] )* '"';

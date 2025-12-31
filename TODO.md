@@ -17,6 +17,10 @@
 
 ## Refactors
 - Organize constants.py
+- Make a new base token class that contains source file and source lines
+  - FunctionToken will then extend this base class
+  - All tokens now have access to their source information
+  - Makes comment generation easier
 
 ## Bugs
 - trying to assign before declaration doesnt have a proper error message

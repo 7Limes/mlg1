@@ -49,6 +49,12 @@ class Namespaces:
 
 
 @dataclass
+class ContextOverride:
+    source_file: str
+    source_lines: list[str]
+
+
+@dataclass
 class InitialPassData:
     meta_variables: dict[str, int] = default_field(META_VAR_DEFAULTS)
     included_files: set[str] = default_field(set())
@@ -56,13 +62,19 @@ class InitialPassData:
     data_entries: dict[str, DataEntry] = default_field({})
     constant_namespace: dict[str, int] = default_field({})
 
+    # Each contains a tuple of (token, source file)
+    global_var_tokens: list[tuple[mlg1Parser.GlobalVarDeclarationContext, ContextOverride]] = default_field([])
+    global_array_tokens: list[tuple[mlg1Parser.GlobalArrayDeclarationContext, ContextOverride]] = default_field([])
+
 
 @dataclass
 class MemoryPassData:
     meta_variables: dict[str, int]
     constant_namespace: dict[str, int]
     data_entries: dict[str, DataEntry]
-    all_function_names: set[str]
+    function_tokens: dict[str, FunctionToken]
+    global_var_tokens: list[tuple[mlg1Parser.GlobalVarDeclarationContext, ContextOverride]]
+    global_array_tokens: list[tuple[mlg1Parser.GlobalArrayDeclarationContext, ContextOverride]]
 
     current_address: int = LOCAL_VAR_ADDRESS
 
@@ -77,9 +89,12 @@ class MemoryPassData:
 @dataclass
 class CodegenPassData:
     compiler_flags: CompilerFlags
+    function_tokens: dict[str, FunctionToken]
     meta_variables: dict[str, int]
     constant_namespace: dict[str, int]
     global_namespace: dict[str, int]
+    global_var_tokens: list[tuple[mlg1Parser.GlobalVarDeclarationContext, ContextOverride]]
+    global_array_tokens: list[tuple[mlg1Parser.GlobalArrayDeclarationContext, ContextOverride]]
     local_namespaces: dict[str, FunctionNamespace]
     string_vars: dict[int, int]
     include_return_subroutine: bool

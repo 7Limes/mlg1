@@ -98,12 +98,21 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by mlg1Parser#variableDeclaration.
-    def enterVariableDeclaration(self, ctx:mlg1Parser.VariableDeclarationContext):
+    # Enter a parse tree produced by mlg1Parser#globalVarDeclaration.
+    def enterGlobalVarDeclaration(self, ctx:mlg1Parser.GlobalVarDeclarationContext):
         pass
 
-    # Exit a parse tree produced by mlg1Parser#variableDeclaration.
-    def exitVariableDeclaration(self, ctx:mlg1Parser.VariableDeclarationContext):
+    # Exit a parse tree produced by mlg1Parser#globalVarDeclaration.
+    def exitGlobalVarDeclaration(self, ctx:mlg1Parser.GlobalVarDeclarationContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#localVarDeclaration.
+    def enterLocalVarDeclaration(self, ctx:mlg1Parser.LocalVarDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#localVarDeclaration.
+    def exitLocalVarDeclaration(self, ctx:mlg1Parser.LocalVarDeclarationContext):
         pass
 
 
@@ -134,12 +143,21 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by mlg1Parser#arrayDeclaration.
-    def enterArrayDeclaration(self, ctx:mlg1Parser.ArrayDeclarationContext):
+    # Enter a parse tree produced by mlg1Parser#globalArrayDeclaration.
+    def enterGlobalArrayDeclaration(self, ctx:mlg1Parser.GlobalArrayDeclarationContext):
         pass
 
-    # Exit a parse tree produced by mlg1Parser#arrayDeclaration.
-    def exitArrayDeclaration(self, ctx:mlg1Parser.ArrayDeclarationContext):
+    # Exit a parse tree produced by mlg1Parser#globalArrayDeclaration.
+    def exitGlobalArrayDeclaration(self, ctx:mlg1Parser.GlobalArrayDeclarationContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#localArrayDeclaration.
+    def enterLocalArrayDeclaration(self, ctx:mlg1Parser.LocalArrayDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#localArrayDeclaration.
+    def exitLocalArrayDeclaration(self, ctx:mlg1Parser.LocalArrayDeclarationContext):
         pass
 
 
@@ -188,15 +206,6 @@ class mlg1Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by mlg1Parser#returnStatement.
-    def enterReturnStatement(self, ctx:mlg1Parser.ReturnStatementContext):
-        pass
-
-    # Exit a parse tree produced by mlg1Parser#returnStatement.
-    def exitReturnStatement(self, ctx:mlg1Parser.ReturnStatementContext):
-        pass
-
-
     # Enter a parse tree produced by mlg1Parser#breakStatement.
     def enterBreakStatement(self, ctx:mlg1Parser.BreakStatementContext):
         pass
@@ -212,6 +221,15 @@ class mlg1Listener(ParseTreeListener):
 
     # Exit a parse tree produced by mlg1Parser#continueStatement.
     def exitContinueStatement(self, ctx:mlg1Parser.ContinueStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by mlg1Parser#returnStatement.
+    def enterReturnStatement(self, ctx:mlg1Parser.ReturnStatementContext):
+        pass
+
+    # Exit a parse tree produced by mlg1Parser#returnStatement.
+    def exitReturnStatement(self, ctx:mlg1Parser.ReturnStatementContext):
         pass
 
 

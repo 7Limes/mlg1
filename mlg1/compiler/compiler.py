@@ -21,7 +21,7 @@ from mlg1.compiler.constants import \
     DEFAULT_INDENT_SIZE, get_return_routine
 from mlg1.compiler.util import error, generic_error, get_error_string, CodeWriter
 from mlg1.compiler.expression import FunctionCallHandler, ExpressionHandler, ExpressionException, evaluate_constant_expression
-from mlg1.compiler.data import CodegenPassData, InitialPassData, MemoryPassData, CompilerFlags, FunctionToken
+from mlg1.compiler.data import CodegenPassData, ContextOverride, InitialPassData, MemoryPassData, CompilerFlags, FunctionToken
 
 from pathlib import Path
 STDLIB_PATH = Path(__file__).parents[1] / 'stdlib'
@@ -31,6 +31,7 @@ class Mlg1CompilerError(Exception):
     """
     Exception class for compiler errors.
     """
+    
 
 
 class CustomErrorListener(ErrorListener):
@@ -47,14 +48,18 @@ class CustomErrorListener(ErrorListener):
         self.errors.append(error_string)
 
 
+def ctx_error(ctx: ParserRuleContext, message: str, source_lines: list[str]):
+    line = ctx.start.line-1
+    error((line, ctx.start.column), source_lines[line], message)
+
+
 class BaseListener(mlg1Listener):
     def __init__(self, source_lines: list[str]):
         super().__init__()
         self.source_lines = source_lines
     
     def error(self, ctx: ParserRuleContext, message: str):
-        line = ctx.start.line-1
-        error((line, ctx.start.column), self.source_lines[line], message)
+        ctx_error(ctx, message, self.source_lines)
 
 
 class InitialListener(BaseListener):
@@ -63,6 +68,7 @@ class InitialListener(BaseListener):
         self.data = initial_pass_data
         self.source_file = source_file
         self.current_function_token: FunctionToken | None = None
+        self.ctx_override = ContextOverride(self.source_file, self.source_lines)
     
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
         function_name: str = ctx.NAME().getText()
@@ -80,7 +86,7 @@ class InitialListener(BaseListener):
     
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         called_function_name: str = ctx.NAME().getText()
-        if called_function_name not in BUILTIN_FUNCTIONS:
+        if called_function_name not in BUILTIN_FUNCTIONS and self.current_function_token:
             self.current_function_token.called_functions.add(called_function_name)
 
     def enterIncludeFile(self, ctx: mlg1Parser.IncludeFileContext):
@@ -128,6 +134,12 @@ class InitialListener(BaseListener):
         constant_name = ctx.NAME().getText()
         value = evaluate_constant_expression(self.data.constant_namespace, ctx.expression())
         self.data.constant_namespace[constant_name] = value
+    
+    def enterGlobalVarDeclaration(self, ctx: mlg1Parser.GlobalVarDeclarationContext):
+        self.data.global_var_tokens.append((ctx, self.ctx_override))
+    
+    def enterGlobalArrayDeclaration(self, ctx: mlg1Parser.GlobalArrayDeclarationContext):
+        self.data.global_array_tokens.append((ctx, self.ctx_override))
 
 
 class MemoryListener(BaseListener):
@@ -137,69 +149,43 @@ class MemoryListener(BaseListener):
         
         self.current_function_name: str = None
     
-    def _declare_variable(self, ctx: ParserRuleContext, name: str, is_global: bool):
-        """
-        Declares a new variable at the current address. Does not increment `self.current_address`.
-        """
+    def check_variable(self, ctx: ParserRuleContext, name: str):
         # Error checking
         if name in RESERVED_NAMES:
             self.error(ctx, f'Variable name "{name}" is reserved.')
+        
         current_locals = self.data.local_namespaces[self.current_function_name]['locals']
         if name in current_locals or name in self.data.global_namespace or name in self.data.constant_namespace:
             self.error(ctx, f'Variable "{name}" declared twice.')
+        
         if self.current_function_name is None:
             self.error(ctx, 'Current function is None.')
-        
-        # Set namespace values
-        if is_global:  # global var
+    
+    def add_namespace_entry(self, name: str, is_global: bool):
+        if is_global:
             self.data.global_namespace[name] = self.data.current_address
-        else:  # local var
-            self.data.local_namespaces[self.current_function_name]['locals'][name] = self.data.current_address
+        else:
+            current_locals = self.data.local_namespaces[self.current_function_name]['locals']
+            current_locals[name] = self.data.current_address
     
-    def enterFunction(self, ctx: mlg1Parser.FunctionContext):
-        function_name: str = ctx.NAME().getText()
-        parameter_list_token = ctx.parameterList()
-        if function_name in ENTRYPOINT_FUNCTIONS and parameter_list_token is not None:
-            self.error(parameter_list_token, f'{function_name} function cannot have parameters.')
-        
-        parameter_count = 0
-        function_namespace = {'locals': {}}
-
-        if parameter_list_token:
-            seen_parameter_names = set()
-            for parameter_name_token in parameter_list_token.children:
-                parameter_name = parameter_name_token.getText()
-                if parameter_name == ',':  # stupid solution
-                    continue
-                if parameter_name in seen_parameter_names:
-                    self.error(parameter_list_token, f'Parameter "{parameter_name}" declared twice.')
-                seen_parameter_names.add(parameter_name)
-                parameter_count += 1
-                function_namespace['locals'][parameter_name] = self.data.current_address
-                self.data.current_address += 1
-        
-        function_namespace['parameter_count'] = parameter_count
-        self.data.local_namespaces[function_name] = function_namespace
-        self.current_function_name = function_name
-    
-    def exitFunction(self, _ctx: mlg1Parser.FunctionContext):
-        self.current_function_name = None
-    
-    def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
-        function_name: str = ctx.NAME().getText()
-        if function_name not in BUILTIN_FUNCTIONS and function_name not in self.data.all_function_names:
-            self.error(ctx, f'Tried to call unrecognized function "{function_name}".')
-        if function_name not in ENTRYPOINT_FUNCTIONS:
-            self.data.include_return_subroutine = True  # include return subroutine if a custom function is called [note 1]
-        function_name = ctx.NAME().getText()
-    
-    def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext):
-        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+    def declare_variable(
+            self,
+            ctx: mlg1Parser.LocalVarDeclarationContext | mlg1Parser.GlobalVarDeclarationContext,
+            is_global: bool
+        ):
+        """
+        Reserves space for a new variable and adds it to the namespace.
+        Also adds string data entries if the variable is a string.
+        """
         for declared_var_token in ctx.declaredVariablesList().declaredVariable():
             name = declared_var_token.NAME().getText()
-            self._declare_variable(ctx, name, is_global)
-
             string_token = declared_var_token.STRING()
+            self.check_variable(ctx, name)
+
+            # Set namespace value
+            self.add_namespace_entry(name, is_global)
+            
+            # Add string data entry if necessary
             if string_token is not None:
                 self.data.data_entries[name] = {
                     'data_type': 'string',
@@ -207,15 +193,13 @@ class MemoryListener(BaseListener):
                     'data': string_token.getText()[1:-1],
                     'var_address': self.data.current_address
                 }
-            
+
             self.data.current_address += 1
     
-    def enterAssignment(self, ctx):
-        name: str = ctx.NAME().getText()
-        if name in RESERVED_NAMES:
-            self.error(ctx, f'Variable name "{name}" is reserved.')
-    
-    def enterArrayDeclaration(self, ctx: mlg1Parser.ArrayDeclarationContext):
+    def declare_array(self, ctx: ParserRuleContext, is_global: bool):
+        """
+        Reserves space for a new array.
+        """
         size_expression_token = ctx.expression()
         array_size = evaluate_constant_expression(self.data.constant_namespace, size_expression_token)
         if array_size <= 0:
@@ -228,12 +212,78 @@ class MemoryListener(BaseListener):
                 self.error(initializer_list_token, 'Array initializer length exceeds array size.')
         
         name = ctx.NAME().getText()
-        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
-        self._declare_variable(ctx, name, is_global)
+        self.check_variable(ctx, name)
+
+        # Set namespace value
+        self.add_namespace_entry(name, is_global)
 
         # Add `array_size` here to allocate space for the array,
-        # Add 1 for the variable that stores the pointer to the array
+        # Plus 1 for the variable that stores the pointer to the array
         self.data.current_address += array_size + 1
+    
+    
+    def enterFunction(self, ctx: mlg1Parser.FunctionContext):
+        function_name: str = ctx.NAME().getText()
+        parameter_list_token = ctx.parameterList()
+        if function_name in ENTRYPOINT_FUNCTIONS and parameter_list_token is not None:
+            self.error(parameter_list_token, f'{function_name} function cannot have parameters.')
+        
+        parameter_count = 0
+        function_namespace = {'locals': {}}
+
+        # Get set of all global names to check for variable name shadowing
+        all_global_names: set[str] = set()
+        for t, _ in self.data.global_var_tokens:
+            for declared_var_token in t.declaredVariablesList().declaredVariable():
+                all_global_names.add(declared_var_token.NAME().getText())
+        for t, _ in self.data.global_array_tokens:
+            all_global_names.add(t.NAME().getText())
+
+        if parameter_list_token:
+            seen_parameter_names = set()
+            for parameter_name_token in parameter_list_token.children:
+                parameter_name = parameter_name_token.getText()
+                if parameter_name == ',':  # stupid solution
+                    continue
+                if parameter_name in seen_parameter_names:
+                    self.error(parameter_list_token, f'Parameter "{parameter_name}" declared twice.')
+                if parameter_name in all_global_names:
+                    self.error(parameter_list_token, f'Parameter "{parameter_name}" shadows existing global name.')
+                seen_parameter_names.add(parameter_name)
+                parameter_count += 1
+                function_namespace['locals'][parameter_name] = self.data.current_address
+                self.data.current_address += 1
+        
+        function_namespace['parameter_count'] = parameter_count
+        self.data.local_namespaces[function_name] = function_namespace
+        self.current_function_name = function_name
+
+        if function_name == 'start':
+            for global_var_ctx, _ in self.data.global_var_tokens:
+                self.declare_variable(global_var_ctx, True)
+            for global_array_ctx, _ in self.data.global_array_tokens:
+                self.declare_array(global_array_ctx, True)
+    
+    def exitFunction(self, _ctx: mlg1Parser.FunctionContext):
+        self.current_function_name = None
+    
+    def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
+        function_name: str = ctx.NAME().getText()
+        if function_name not in BUILTIN_FUNCTIONS:
+            if function_name not in self.data.function_tokens:
+                self.error(ctx, f'Tried to call unrecognized function "{function_name}".')
+            self.data.include_return_subroutine = True  # Include return subroutine if a custom function is called [note 1]
+    
+    def enterLocalVarDeclaration(self, ctx: mlg1Parser.LocalVarDeclarationContext):
+        self.declare_variable(ctx, False)
+    
+    def enterAssignment(self, ctx):
+        name: str = ctx.NAME().getText()
+        if name in RESERVED_NAMES:
+            self.error(ctx, f'Variable name "{name}" is reserved.')
+        
+    def enterLocalArrayDeclaration(self, ctx):
+        self.declare_array(ctx, False)
 
 
 class CodegenListener(BaseListener):
@@ -250,8 +300,7 @@ class CodegenListener(BaseListener):
         self.continue_label_stack: deque[str] = deque()
         self.for_loop_end_stack: deque[tuple[str, mlg1Parser.AssignmentContext]] = []
     
-    
-    def _get_var_address(self, ctx: ParserRuleContext, var_name: str, is_global: bool) -> int:
+    def get_var_address(self, ctx: ParserRuleContext, var_name: str, is_global: bool) -> int:
         if is_global:
             return self.data.global_namespace[var_name]
         
@@ -261,58 +310,28 @@ class CodegenListener(BaseListener):
         
         return namespace['locals'][var_name]
 
-
-    def _add_conditional_inversion(self):
+    def add_conditional_inversion(self):
         inversion_instruction = f'not {ARITHMETIC_REGISTER_ADDRESS} ${ARITHMETIC_REGISTER_ADDRESS}'
         if self.code_writer.last_line == inversion_instruction:  # [note 3]
             self.code_writer.lines.pop()
         else:
             self.code_writer.add_line(inversion_instruction)
-        
     
-    def _add_source_code_comment(self, ctx):
-        """
-        Adds a comment containing the source line that corresponds to a block of generated code.
-        """
-        if not self.data.compiler_flags.include_source:
-            return
-        
-        line_stripped = self.source_lines[ctx.start.line-1].strip()
-        self.code_writer.add_lines([
-            '',  # Extra line for padding
-            f'; {self.function_token.source_file}@{ctx.start.line}:{ctx.start.column} {line_stripped}'
-        ])
+    def add_var_declaration(
+            self,
+            ctx: mlg1Parser.LocalVarDeclarationContext | mlg1Parser.GlobalVarDeclarationContext,
+            is_global: bool,
+            add_comment: bool,
+            context_override: ContextOverride | None=None
+        ):
 
-
-    def enterFunction(self, ctx: mlg1Parser.FunctionContext):
-        self.code_writer.add_line('')
-        self._add_source_code_comment(ctx)
-
-        function_name = ctx.NAME().getText()
-        self.code_writer.add_line(f'{function_name}:')
-        if function_name == 'start' and self.data.include_return_subroutine:
-            whitespace = " "*self.data.compiler_flags.indent_size
-            self.code_writer.add_line(f'{whitespace}mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
-    
-    def exitFunction(self, ctx: mlg1Parser.FunctionContext):
-        if ctx.NAME().getText() in ENTRYPOINT_FUNCTIONS:
-            self.code_writer.add_line('jmp end 1')
-        elif self.code_writer.last_line != 'jmp return 1':
-            whitespace = " "*self.data.compiler_flags.indent_size
-            self.code_writer.add_line(f'{whitespace}jmp return 1')
-    
-    def enterVariableDeclaration(self, ctx: mlg1Parser.VariableDeclarationContext, add_comment: bool=True):
-        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
-            return
-        
         if add_comment:
-            self._add_source_code_comment(ctx)
-
-
-        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
+            self.add_source_code_comment(ctx, context_override)
+        
         for declared_var_token in ctx.declaredVariablesList().declaredVariable():
+            
             var_name = declared_var_token.NAME().getText()
-            var_address = self._get_var_address(ctx, var_name, is_global)
+            var_address = self.get_var_address(ctx, var_name, is_global)
             if declared_var_token.STRING():
                 string_address = self.data.string_vars[var_address]
                 self.code_writer.add_line(f'mov {var_address} {string_address}')
@@ -320,37 +339,22 @@ class CodegenListener(BaseListener):
                 expression_token = declared_var_token.expression()
                 try:
                     expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
+                    expression_code = expression.generate_code(var_address, self.function_token.name, self.data.function_base_registers)
                 except ExpressionException as e:
                     self.error(e.token, str(e))
                 
-                expression_code = expression.generate_code(var_address, self.function_token.name, self.data.function_base_registers)
                 self.code_writer.add_lines(expression_code)
     
-    def enterAssignment(self, ctx: mlg1Parser.AssignmentContext, add_comment: bool=True):
-        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
-            return
-        
-        if add_comment:
-            self._add_source_code_comment(ctx)
-
-        expression_token = ctx.expression()
-        try:
-            expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
-        except ExpressionException as e:
-            self.error(e.token, str(e))
-        
-        var_name = ctx.NAME().getText()
-        is_global = var_name in self.data.global_namespace
-        destination = self._get_var_address(ctx, var_name, is_global)
-        expression_code = expression.generate_code(destination, self.function_token.name, self.data.function_base_registers)
-        self.code_writer.add_lines(expression_code)
-    
-    def enterArrayDeclaration(self, ctx):
-        self._add_source_code_comment(ctx)
+    def add_array_declaration(
+            self,
+            ctx: mlg1Parser.LocalArrayDeclarationContext | mlg1Parser.GlobalArrayDeclarationContext,
+            is_global: bool,
+            context_override: ContextOverride | None=None
+        ):
+        self.add_source_code_comment(ctx, context_override)
 
         var_name = ctx.NAME().getText()
-        is_global = ctx.VARIABLE_KEYWORD().getText() == 'global'
-        array_address = self._get_var_address(ctx, var_name, is_global)
+        array_address = self.get_var_address(ctx, var_name, is_global)
         self.code_writer.add_line(f'mov {array_address} {array_address+1}')
 
         initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.expressionList()
@@ -363,10 +367,90 @@ class CodegenListener(BaseListener):
                     self.error(e.token, str(e))
                 expression_code = expression.generate_code(array_address+i+1, self.function_token.name, self.data.function_base_registers)
                 self.code_writer.add_lines(expression_code)
+    
+    def add_source_code_comment(self, ctx, context_override: ContextOverride | None=None):
+        """
+        Adds a comment containing the source line that corresponds to a block of generated code.
+        """
+        if not self.data.compiler_flags.include_source:
+            return
+        
+        if context_override:
+            source_file = context_override.source_file
+            line = context_override.source_lines[ctx.start.line-1].strip()
+        else:
+            source_file = self.function_token.source_file
+            line = self.source_lines[ctx.start.line-1].strip()
+        
+        self.code_writer.add_lines([
+            '',  # Extra line for padding
+            f'; {source_file}@{ctx.start.line}:{ctx.start.column} {line}'
+        ])
+
+
+    def enterFunction(self, ctx: mlg1Parser.FunctionContext):
+        self.code_writer.add_line('')
+        self.add_source_code_comment(ctx)
+
+        function_name = ctx.NAME().getText()
+        self.code_writer.add_line(f'{function_name}:')
+
+        if function_name == 'start':
+            self.code_writer.indent_level += 1
+
+            # Initialize call stack
+            if self.data.include_return_subroutine:
+                if self.data.compiler_flags.include_source:
+                    self.code_writer.add_line(f'; Initialize call stack')
+                self.code_writer.add_line(f'mov {CALL_STACK_POINTER_ADDRESS} {CALL_STACK_DATA_ADDRESS}')
+
+            # Inject global var assignments into start routine
+            for global_var_ctx, ctx_override in self.data.global_var_tokens:
+                self.add_var_declaration(global_var_ctx, True, self.data.compiler_flags.include_source, ctx_override)
+            for global_array_ctx, ctx_override in self.data.global_array_tokens:
+                self.add_array_declaration(global_array_ctx, True, ctx_override)
+            
+            self.code_writer.indent_level -= 1
+    
+
+    def exitFunction(self, ctx: mlg1Parser.FunctionContext):
+        if ctx.NAME().getText() in ENTRYPOINT_FUNCTIONS:
+            self.code_writer.add_line('jmp end 1')
+        elif self.code_writer.last_line != 'jmp return 1':
+            whitespace = " "*self.data.compiler_flags.indent_size
+            self.code_writer.add_line(f'{whitespace}jmp return 1')
+    
+    def enterLocalVarDeclaration(self, ctx: mlg1Parser.LocalVarDeclarationContext, add_comment: bool=True):
+        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
+            return
+
+        self.add_var_declaration(ctx, False, add_comment)
+    
+    def enterAssignment(self, ctx: mlg1Parser.AssignmentContext, add_comment: bool=True):
+        if isinstance(ctx.parentCtx, mlg1Parser.ForLoopContext):
+            return
+        
+        if add_comment:
+            self.add_source_code_comment(ctx)
+
+        expression_token = ctx.expression()
+        try:
+            expression = ExpressionHandler(self.data.get_namespaces(), expression_token)
+        except ExpressionException as e:
+            self.error(e.token, str(e))
+        
+        var_name = ctx.NAME().getText()
+        is_global = var_name in self.data.global_namespace
+        destination = self.get_var_address(ctx, var_name, is_global)
+        expression_code = expression.generate_code(destination, self.function_token.name, self.data.function_base_registers)
+        self.code_writer.add_lines(expression_code)
+    
+    def enterLocalArrayDeclaration(self, ctx: mlg1Parser.LocalArrayDeclarationContext):
+        self.add_array_declaration(ctx, False)
         
     def enterFunctionCall(self, ctx: mlg1Parser.FunctionCallContext):
         if isinstance(ctx.parentCtx, mlg1Parser.StatementContext):
-            self._add_source_code_comment(ctx)
+            self.add_source_code_comment(ctx)
 
             try:
                 function_call = FunctionCallHandler.from_token(self.data.get_namespaces(), ctx)
@@ -380,7 +464,7 @@ class CodegenListener(BaseListener):
             self.code_writer.add_lines(function_call_code)
     
     def enterReturnStatement(self, ctx: mlg1Parser.ReturnStatementContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
         
         expression_token = ctx.expression()
         try:
@@ -393,13 +477,13 @@ class CodegenListener(BaseListener):
         self.code_writer.add_line('jmp return 1')
     
     def enterBreakStatement(self, ctx: mlg1Parser.BreakStatementContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
         break_label = self.break_label_stack[-1]
         self.code_writer.add_line(f'jmp {break_label} 1')
     
     def enterContinueStatement(self, ctx: mlg1Parser.ContinueStatementContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
         continue_label = self.continue_label_stack[-1]
         self.code_writer.add_line(f'jmp {continue_label} 1')
@@ -413,7 +497,7 @@ class CodegenListener(BaseListener):
         
         expression_code = condition_expression.generate_code(ARITHMETIC_REGISTER_ADDRESS, self.function_token.name, self.data.function_base_registers)
         self.code_writer.add_lines(expression_code)
-        self._add_conditional_inversion()
+        self.add_conditional_inversion()
         
         skip_label_name = f'{self.function_token.name}_skip_{ctx.start.line}_{ctx.start.column}'
         self.code_writer.add_line(f'jmp {skip_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
@@ -435,21 +519,21 @@ class CodegenListener(BaseListener):
             self.block_end_stack.append(skip_label_name + ':')
 
     def enterIfStatement(self, ctx: mlg1Parser.IfStatementContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
         
         self.generate_if_statement(ctx, ctx)
     
     def enterElseIfClause(self, ctx: mlg1Parser.ElseIfClauseContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
         parent: mlg1Parser.IfStatementContext = ctx.parentCtx
         self.generate_if_statement(ctx, parent)
 
     def enterElseClause(self, ctx: mlg1Parser.ElseClauseContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
     def enterWhileLoop(self, ctx: mlg1Parser.WhileLoopContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
         loop_label_name = f'{self.function_token.name}_loop_{ctx.start.line}_{ctx.start.column}'
         loop_end_label_name = f'{self.function_token.name}_end_{ctx.start.line}_{ctx.start.column}'
@@ -463,7 +547,7 @@ class CodegenListener(BaseListener):
         
         self.code_writer.add_line(loop_label_name + ':')
         self.code_writer.add_lines(expression_code)
-        self._add_conditional_inversion()
+        self.add_conditional_inversion()
         self.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
         self.block_end_stack.append([loop_end_label_name + ':', f'jmp {loop_label_name} 1'])
 
@@ -471,15 +555,15 @@ class CodegenListener(BaseListener):
         self.continue_label_stack.append(loop_label_name)
     
     def enterForLoop(self, ctx: mlg1Parser.ForLoopContext):
-        self._add_source_code_comment(ctx)
+        self.add_source_code_comment(ctx)
 
-        var_declaration: mlg1Parser.VariableDeclarationContext = ctx.variableDeclaration()
+        var_declaration: mlg1Parser.VariableDeclarationContext = ctx.localVarDeclaration()
         assignment: list[mlg1Parser.AssignmentContext] = ctx.assignment()
 
         if var_declaration is not None: 
             parent = var_declaration.parentCtx
             var_declaration.parentCtx = None
-            self.enterVariableDeclaration(var_declaration, add_comment=False)
+            self.enterLocalVarDeclaration(var_declaration, add_comment=False)
             var_declaration.parentCtx = parent
             increment_token = assignment[0]
         elif len(assignment) == 2:
@@ -505,7 +589,7 @@ class CodegenListener(BaseListener):
         
         self.code_writer.add_line(loop_label_name + ':')
         self.code_writer.add_lines(expression_code)
-        self._add_conditional_inversion()
+        self.add_conditional_inversion()
         self.code_writer.add_line(f'jmp {loop_end_label_name} ${ARITHMETIC_REGISTER_ADDRESS}')
         self.block_end_stack.append([loop_end_label_name + ':', f'jmp {loop_label_name} 1'])
         self.for_loop_end_stack.append((loop_continue_label_name + ':', increment_token))
@@ -541,7 +625,7 @@ class CodegenListener(BaseListener):
 
 def initial_pass(initial_pass_data: InitialPassData, file_path: str):
     """
-    Records functions, constants, meta vars, and loads files.
+    Records functions, constants, globals, meta vars, and loads files.
     """
     if not os.path.isfile(file_path):
         raise Mlg1CompilerError(f'Path "{file_path}" does not exist or is not a file.')
@@ -575,7 +659,7 @@ def initial_pass(initial_pass_data: InitialPassData, file_path: str):
     walker.walk(listener, program_token)
 
 
-def after_initial_pass(initial_pass_data: InitialPassData) -> list[FunctionToken]:
+def after_initial_pass(initial_pass_data: InitialPassData) -> MemoryPassData:
     # Add meta vars to the constant namespace to allow constant propagation
     for meta_var_name in META_VAR_DEFAULTS:
         initial_pass_data.constant_namespace[meta_var_name.upper()] = initial_pass_data.meta_variables[meta_var_name]
@@ -594,16 +678,25 @@ def after_initial_pass(initial_pass_data: InitialPassData) -> list[FunctionToken
         # function and we'll catch this error in the memory pass
         seen_functions.add(function_name)
     
-    used_function_tokens = [t for t in initial_pass_data.function_tokens.values() if t.name in seen_functions]
-    return used_function_tokens
+    used_function_tokens = {t.name: t for t in initial_pass_data.function_tokens.values() if t.name in seen_functions}
+
+    return MemoryPassData(
+        initial_pass_data.meta_variables,
+        initial_pass_data.constant_namespace,
+        initial_pass_data.data_entries,
+        used_function_tokens,
+        initial_pass_data.global_var_tokens,
+        initial_pass_data.global_array_tokens
+    )
 
 
-def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[FunctionToken], data_file_path: str, data_file_indent_size: int):
+def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags, data_file_path: str) -> CodegenPassData:
     """
     Determines the memory layout of everything in the program.
     """
+    # Walk through function tokens
     walker = ParseTreeWalker()
-    for function_token in function_tokens:
+    for function_token in memory_pass_data.function_tokens.values():
         listener = MemoryListener(memory_pass_data, function_token)
         walker.walk(listener, function_token.token)
     
@@ -631,12 +724,25 @@ def memory_pass(memory_pass_data: MemoryPassData, function_tokens: list[Function
     
     # Write the data file
     if data_file_rules:
-        data_file_cw = CodeWriter(data_file_indent_size)
+        data_file_cw = CodeWriter(compiler_flags.indent_size)
         data_file_cw.add_lines(data_file_rules)
         data_file_cw.write_file(data_file_path)
+    
+    return CodegenPassData(
+        compiler_flags,
+        memory_pass_data.function_tokens,
+        memory_pass_data.meta_variables,
+        memory_pass_data.constant_namespace,
+        memory_pass_data.global_namespace,
+        memory_pass_data.global_var_tokens,
+        memory_pass_data.global_array_tokens,
+        memory_pass_data.local_namespaces,
+        memory_pass_data.string_vars,
+        memory_pass_data.include_return_subroutine
+    )
 
 
-def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter, function_tokens: list[FunctionToken]):
+def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter):
     """
     Generates assembly code.
     """
@@ -649,7 +755,7 @@ def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter, fu
     walker = ParseTreeWalker()
 
     # Walk through each function with the codegen listener
-    for function_token in function_tokens:
+    for function_token in codegen_pass_data.function_tokens.values():
         codegen_pass_data.current_function_token = function_token
         listener = CodegenListener(codegen_pass_data, code_writer, function_token)
         walker.walk(listener, function_token.token)
@@ -679,34 +785,19 @@ def main() -> int:
         print(e)
         return 2
     
-    function_tokens = after_initial_pass(initial_pass_data)
-
+    # After initial pass
+    memory_pass_data = after_initial_pass(initial_pass_data)
+    
     # Memory layout pass
-    memory_pass_data = MemoryPassData(
-        initial_pass_data.meta_variables,
-        initial_pass_data.constant_namespace,
-        initial_pass_data.data_entries,
-        set(t.name for t in function_tokens)
-    )
-
     try:
-        memory_pass(memory_pass_data, function_tokens, parsed_args.output_file + 'd', compiler_flags.indent_size)
+        codegen_pass_data = memory_pass(memory_pass_data, compiler_flags, parsed_args.output_file + 'd')
     except Mlg1CompilerError as e:
         print(e)
         return 3
 
     # Codegen pass
-    codegen_pass_data = CodegenPassData(
-        compiler_flags,
-        memory_pass_data.meta_variables,
-        memory_pass_data.constant_namespace,
-        memory_pass_data.global_namespace,
-        memory_pass_data.local_namespaces,
-        memory_pass_data.string_vars,
-        memory_pass_data.include_return_subroutine
-    )
     code_writer = CodeWriter(compiler_flags.indent_size)
-    codegen_pass(codegen_pass_data, code_writer, function_tokens)
+    codegen_pass(codegen_pass_data, code_writer)
     code_writer.write_file(parsed_args.output_file)
 
     return 0

@@ -4,6 +4,8 @@
 define __RAND_MODULUS 2147483647
 define __RAND_MULTIPLIER 1583458089
 
+global __rand_value = 1
+
 
 // Returns `x` clamped to [`lower`, `upper`]
 fn clamp(x, lower, upper) {
@@ -35,7 +37,7 @@ fn signof(x) {
 
 // Returns a random integer
 fn next_rand() {
-    global __rand_value = __rand_value * __RAND_MULTIPLIER % __RAND_MODULUS
+    __rand_value = __rand_value * __RAND_MULTIPLIER % __RAND_MODULUS
     return __rand_value
 }
 
