@@ -49,8 +49,8 @@ declaredVariable: NAME ('=' (expression | STRING))?;
 assignment: NAME '=' expression;
 
 // Array declarations
-globalArrayDeclaration: 'global' NAME '[' expression ']' ('=' '[' expressionList? ']')?;
-localArrayDeclaration: 'let' NAME '[' expression ']' ('=' '[' expressionList? ']')?;
+globalArrayDeclaration: 'global' NAME '[' expression? ']' ('=' '[' expressionList? ']')?;
+localArrayDeclaration: 'let' NAME '[' expression? ']' ('=' '[' expressionList? ']')?;
 
 // Conditionals
 ifStatement: 'if' expression block elseIfClause* elseClause?;

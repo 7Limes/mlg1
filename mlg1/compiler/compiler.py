@@ -201,15 +201,22 @@ class MemoryListener(BaseListener):
         Reserves space for a new array.
         """
         size_expression_token = ctx.expression()
-        array_size = evaluate_constant_expression(self.data.constant_namespace, size_expression_token)
-        if array_size <= 0:
-            self.error(size_expression_token, 'Array size must be greater than zero.')
-        
-        initializer_list_token: mlg1Parser.ArrayInitializerListContext = ctx.expressionList()
-        if initializer_list_token is not None:
+        initializer_list_token: mlg1Parser.ExpressionListContext = ctx.expressionList()
+
+        if initializer_list_token is None:
+            array_value_tokens = []
+        else:
             array_value_tokens = list(initializer_list_token.getChildren(lambda c: isinstance(c, mlg1Parser.ExpressionContext)))
-            if len(array_value_tokens) > array_size:
-                self.error(initializer_list_token, 'Array initializer length exceeds array size.')
+        
+        if size_expression_token is None:
+            array_size = len(array_value_tokens)
+        else:
+            array_size = evaluate_constant_expression(self.data.constant_namespace, size_expression_token)
+        if array_size <= 0:
+            self.error(ctx, 'Array size must be greater than zero.')
+        
+        if len(array_value_tokens) > array_size:
+            self.error(initializer_list_token, 'Array initializer length exceeds array size.')
         
         name = ctx.NAME().getText()
         self.check_variable(ctx, name)
