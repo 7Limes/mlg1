@@ -69,6 +69,11 @@ class InitialListener(BaseListener):
         self.source_file = source_file
         self.current_function_token: FunctionToken | None = None
         self.ctx_override = ContextOverride(self.source_file, self.source_lines)
+
+        # Add default meta var values to constant namespace
+        for meta_var_name, default_value in META_VAR_DEFAULTS.items():
+            self.data.constant_namespace[meta_var_name.upper()] = default_value
+        
     
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
         function_name: str = ctx.NAME().getText()
@@ -114,6 +119,9 @@ class InitialListener(BaseListener):
         name = ctx.META_VARIABLE_NAME().getText()
         value = int(ctx.INTEGER().getText())
         self.data.meta_variables[name] = value
+
+        # Add meta var to the constant namespace to allow constant propagation
+        self.data.constant_namespace[name.upper()] = value
     
     def enterLoadFile(self, ctx: mlg1Parser.LoadFileContext):
         name = ctx.NAME().getText()
@@ -667,10 +675,6 @@ def initial_pass(initial_pass_data: InitialPassData, file_path: str):
 
 
 def after_initial_pass(initial_pass_data: InitialPassData) -> MemoryPassData:
-    # Add meta vars to the constant namespace to allow constant propagation
-    for meta_var_name in META_VAR_DEFAULTS:
-        initial_pass_data.constant_namespace[meta_var_name.upper()] = initial_pass_data.meta_variables[meta_var_name]
-    
     # Walk through function call tree starting at entrypoints to determine which functions will actually be used
     functions_to_walk: deque[str] = deque(ENTRYPOINT_FUNCTIONS)
     seen_functions: set[str] = set()
