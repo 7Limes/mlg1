@@ -66,6 +66,11 @@ class InitialPassData:
     global_var_tokens: list[tuple[mlg1Parser.GlobalVarDeclarationContext, ContextOverride]] = default_field([])
     global_array_tokens: list[tuple[mlg1Parser.GlobalArrayDeclarationContext, ContextOverride]] = default_field([])
 
+    def __post_init__(self):
+        # Add default meta var values to constant namespace
+        for meta_var_name, default_value in META_VAR_DEFAULTS.items():
+            self.constant_namespace[meta_var_name.upper()] = default_value
+
 
 @dataclass
 class MemoryPassData:

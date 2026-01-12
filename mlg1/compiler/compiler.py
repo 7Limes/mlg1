@@ -16,7 +16,7 @@ from mlg1.parser.mlg1Lexer import mlg1Lexer
 from mlg1.parser.mlg1Listener import mlg1Listener
 from mlg1.parser.mlg1Parser import mlg1Parser
 from mlg1.compiler.constants import \
-    RESERVED_NAMES, ENTRYPOINT_FUNCTIONS, BUILTIN_FUNCTIONS, META_VAR_DEFAULTS, \
+    RESERVED_NAMES, ENTRYPOINT_FUNCTIONS, BUILTIN_FUNCTIONS, \
     ARITHMETIC_REGISTER_ADDRESS, CALL_STACK_POINTER_ADDRESS, CALL_STACK_DATA_ADDRESS, RETURN_REGISTER_ADDRESS, \
     DEFAULT_INDENT_SIZE, get_return_routine
 from mlg1.compiler.util import error, generic_error, get_error_string, CodeWriter
@@ -69,10 +69,6 @@ class InitialListener(BaseListener):
         self.source_file = source_file
         self.current_function_token: FunctionToken | None = None
         self.ctx_override = ContextOverride(self.source_file, self.source_lines)
-
-        # Add default meta var values to constant namespace
-        for meta_var_name, default_value in META_VAR_DEFAULTS.items():
-            self.data.constant_namespace[meta_var_name.upper()] = default_value
         
     
     def enterFunction(self, ctx: mlg1Parser.FunctionContext):
@@ -690,7 +686,6 @@ def after_initial_pass(initial_pass_data: InitialPassData) -> MemoryPassData:
         seen_functions.add(function_name)
     
     used_function_tokens = {t.name: t for t in initial_pass_data.function_tokens.values() if t.name in seen_functions}
-
     return MemoryPassData(
         initial_pass_data.meta_variables,
         initial_pass_data.constant_namespace,
