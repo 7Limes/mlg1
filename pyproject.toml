@@ -1,0 +1,34 @@
+[project]
+name = "mlg1"
+version = "0.1.0"
+description = "Compiler implementation for mlg1"
+authors = [
+    {name = "7Limes"}
+]
+license = "MIT"
+readme = "README.md"
+keywords = ["compiler", "cli"]
+
+requires-python = ">=3.10"
+dependencies = [
+    "antlr4-python3-runtime>=4.13.2",
+    "g1asm>=0.3.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "twine>=6.2.0"
+]
+
+
+[project.urls]
+Repository = "https://github.com/7Limes/mlg1"
+
+
+[tool.poetry.scripts]
+mlg1 = "mlg1.compiler.compiler:main"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

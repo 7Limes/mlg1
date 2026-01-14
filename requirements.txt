@@ -1,6 +1,0 @@
-antlr4-python3-runtime==4.13.2
-appdirs==1.4.4
-construct==2.10.70
-g1asm==0.2.0
-pillow==12.0.0
-rply==0.7.8

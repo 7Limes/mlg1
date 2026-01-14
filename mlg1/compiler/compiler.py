@@ -9,6 +9,7 @@ import sys
 import os
 import argparse
 from collections import deque
+import importlib.metadata
 from antlr4 import Lexer, ParserRuleContext, ParseTreeWalker, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from g1asm.data import parse_entry
@@ -776,6 +777,7 @@ def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter):
 def main() -> int:
     try:
         arg_parser = argparse.ArgumentParser('mlg1', description='Compile mlg1 programs')
+        arg_parser.add_argument('--version', '-v', action='version', version=f'mlg1 compiler v{importlib.metadata.version('mlg1')}')
         arg_parser.add_argument('input_file', help='Path to the input mlg1 program')
         arg_parser.add_argument('output_file', help='Path to the output g1 program')
         arg_parser.add_argument('--include_source', '-s', action='store_true', help='Add source code comments to the output program')
