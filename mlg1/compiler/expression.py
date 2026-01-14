@@ -109,7 +109,7 @@ class FunctionCallHandler:
             expected_args = self.namespaces.local_namespaces[self.function_name]['parameter_count']
         passed_args = len(self.arguments)
         if passed_args != expected_args:
-            args_token = self.token.expressionList()
+            args_token = self.token
             raise ExpressionException(args_token, f'Expected {expected_args} arguments for function "{self.function_name}" but got {passed_args}.')
 
     @staticmethod

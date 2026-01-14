@@ -96,6 +96,7 @@ class CodegenPassData:
     compiler_flags: CompilerFlags
     function_tokens: dict[str, FunctionToken]
     meta_variables: dict[str, int]
+    data_entry_lines: list[str]
     constant_namespace: dict[str, int]
     global_namespace: dict[str, int]
     global_var_tokens: list[tuple[mlg1Parser.GlobalVarDeclarationContext, ContextOverride]]

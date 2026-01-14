@@ -696,7 +696,7 @@ def after_initial_pass(initial_pass_data: InitialPassData) -> MemoryPassData:
     )
 
 
-def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags, data_file_path: str) -> CodegenPassData:
+def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags) -> CodegenPassData:
     """
     Determines the memory layout of everything in the program.
     """
@@ -706,8 +706,8 @@ def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags,
         listener = MemoryListener(memory_pass_data, function_token)
         walker.walk(listener, function_token.token)
     
-    # Add addresses of loaded files to the constant namespace
-    data_file_rules = []
+    # Create data entry lines
+    data_entry_lines = []
     for var_name, data_entry in memory_pass_data.data_entries.items():
         data_type = data_entry['data_type']
         operation = data_entry['operation']
@@ -718,8 +718,10 @@ def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags,
             raise Mlg1CompilerError(parse_entry_result)
         entry_size = len(parse_entry_result)
 
-        data_file_rules.append(f'{memory_pass_data.current_address}: {data_type} {operation} {data}')
+        data_entry_lines.append(f'@{memory_pass_data.current_address} {data_type} {operation} "{data}"')
+
         if data_type == 'file':
+            # Add addresses of loaded files to the constant namespace
             memory_pass_data.constant_namespace[var_name] = memory_pass_data.current_address
         elif data_type == 'string':
             memory_pass_data.string_vars[data_entry['var_address']] = memory_pass_data.current_address
@@ -728,16 +730,11 @@ def memory_pass(memory_pass_data: MemoryPassData, compiler_flags: CompilerFlags,
     
     memory_pass_data.meta_variables['memory'] += memory_pass_data.current_address  # offset requested memory by the stack memory size [note 2]
     
-    # Write the data file
-    if data_file_rules:
-        data_file_cw = CodeWriter(compiler_flags.indent_size)
-        data_file_cw.add_lines(data_file_rules)
-        data_file_cw.write_file(data_file_path)
-    
     return CodegenPassData(
         compiler_flags,
         memory_pass_data.function_tokens,
         memory_pass_data.meta_variables,
+        data_entry_lines,
         memory_pass_data.constant_namespace,
         memory_pass_data.global_namespace,
         memory_pass_data.global_var_tokens,
@@ -752,15 +749,22 @@ def codegen_pass(codegen_pass_data: CodegenPassData, code_writer: CodeWriter):
     """
     Generates assembly code.
     """
-    # Add meta variable lines
+    # Write meta variable lines
     for meta_var_name, meta_var_value in codegen_pass_data.meta_variables.items():
         code_writer.add_line(f'#{meta_var_name} {meta_var_value}')
+    code_writer.add_line('')  # Padding line
+
+    # Write data entry lines
+    if codegen_pass_data.data_entry_lines:
+        code_writer.add_lines(codegen_pass_data.data_entry_lines)
+        code_writer.add_line('')  # Padding line
     
+    # Write return subroutine
     if codegen_pass_data.include_return_subroutine:
         code_writer.add_lines(get_return_routine(codegen_pass_data.compiler_flags.indent_size))
-    walker = ParseTreeWalker()
-
+        
     # Walk through each function with the codegen listener
+    walker = ParseTreeWalker()
     for function_token in codegen_pass_data.function_tokens.values():
         codegen_pass_data.current_function_token = function_token
         listener = CodegenListener(codegen_pass_data, code_writer, function_token)
@@ -796,7 +800,7 @@ def main() -> int:
     
     # Memory layout pass
     try:
-        codegen_pass_data = memory_pass(memory_pass_data, compiler_flags, parsed_args.output_file + 'd')
+        codegen_pass_data = memory_pass(memory_pass_data, compiler_flags)
     except Mlg1CompilerError as e:
         print(e)
         return 3
