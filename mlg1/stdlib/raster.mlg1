@@ -1,0 +1,122 @@
+// https://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
+
+define __RASTER_MATH_SCALE 256
+
+
+fn _flat_bottom_triangle(v1x, v1y, v2x, v2y, v3x, v3y) {
+    let invslope1 = 0
+    if (v2y != v1y) {
+        invslope1 = (v2x - v1x) * __RASTER_MATH_SCALE / (v2y - v1y)
+    }
+
+    let invslope2 = 0
+    if (v3y != v1y) {
+        invslope2 = (v3x - v1x) * __RASTER_MATH_SCALE / (v3y - v1y)
+    }
+
+    let curx1 = v1x * __RASTER_MATH_SCALE
+    let curx2 = curx1
+
+    for (let scanline_y = v1y; scanline_y <= v2y; scanline_y=scanline_y+1) {
+        line(
+            curx1 / __RASTER_MATH_SCALE, scanline_y,
+            curx2 / __RASTER_MATH_SCALE, scanline_y
+        )
+        curx1 = curx1 + invslope1
+        curx2 = curx2 + invslope2
+    }
+}
+
+
+fn _flat_top_triangle(v1x, v1y, v2x, v2y, v3x, v3y) {
+    let invslope1 = 0
+    if v3y != v1y {
+        invslope1 = (v3x - v1x) * __RASTER_MATH_SCALE / (v3y - v1y)
+    }
+
+    let invslope2 = 0
+    if v3y != v2y {
+        invslope2 = (v3x - v2x) * __RASTER_MATH_SCALE / (v3y - v2y)
+    }
+
+    let curx1 = v3x * __RASTER_MATH_SCALE
+    let curx2 = curx1
+
+    for (let scanline_y = v3y; scanline_y > v1y; scanline_y=scanline_y-1) {
+        line(
+            curx1 / __RASTER_MATH_SCALE, scanline_y,
+            curx2 / __RASTER_MATH_SCALE, scanline_y
+        )
+        curx1 = curx1 - invslope1
+        curx2 = curx2 - invslope2
+    }
+}
+
+fn _sort_triangle_vertices(p_v1x, p_v1y, p_v2x, p_v2y, p_v3x, p_v3y) {
+    let v1x = get(p_v1x)
+    let v1y = get(p_v1y)
+    let v2x = get(p_v2x)
+    let v2y = get(p_v2y)
+    let v3x = get(p_v3x)
+    let v3y = get(p_v3y)
+    let temp
+
+    if v1y > v2y {
+        temp = v1x
+        v1x = v2x
+        v2x = temp
+
+        temp = v1y
+        v1y = v2y
+        v2y = temp
+    }
+
+    if v2y > v3y {
+        temp = v2x
+        v2x = v3x
+        v3x = temp
+
+        temp = v2y
+        v2y = v3y
+        v3y = temp
+    }
+
+    if v1y > v2y {
+        temp = v1x
+        v1x = v2x
+        v2x = temp
+
+        temp = v1y
+        v1y = v2y
+        v2y = temp
+    }
+
+    set(p_v1x, v1x)
+    set(p_v1y, v1y)
+    set(p_v2x, v2x)
+    set(p_v2y, v2y)
+    set(p_v3x, v3x)
+    set(p_v3y, v3y)
+}
+
+fn triangle(v1x, v1y, v2x, v2y, v3x, v3y) {
+    _sort_triangle_vertices(&v1x, &v1y, &v2x, &v2y, &v3x, &v3y)
+
+    if v2y == v3y {
+        _flat_bottom_triangle(v1x, v1y, v2x, v2y, v3x, v3y)
+    }
+    else if v1y == v2y {
+        _flat_top_triangle(v1x, v1y, v2x, v2y, v3x, v3y)
+    }
+    else {
+        let ydiff = 0
+        let ydiff_divisor = v3y - v1y
+        if ydiff_divisor {
+            ydiff = ((v2y - v1y) * __RASTER_MATH_SCALE) / ydiff_divisor
+        }
+        let v4x = v1x + ydiff * (v3x - v1x) / __RASTER_MATH_SCALE
+        let v4y = v2y
+        _flat_bottom_triangle(v1x, v1y, v2x, v2y, v4x, v4y)
+        _flat_top_triangle(v2x, v2y, v4x, v4y, v3x, v3y)
+    }
+}
