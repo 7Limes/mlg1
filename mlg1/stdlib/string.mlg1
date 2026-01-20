@@ -1,6 +1,11 @@
 include "math"
 
 
+define _FORMAT_CODE_PREFIX 37   // '%'
+define _FORMAT_CODE_INT 105     // 'i'
+define _FORMAT_CODE_STRING 115  // 's'
+
+
 // Convert an integer to an ascii encoded string
 fn int_to_str(buffer, x) {
     let amount_digits = x == 0
@@ -26,6 +31,17 @@ fn int_to_str(buffer, x) {
         let digit = x % 10 + 48
         x = x / 10
         set(i, digit)
+    }
+}
+
+
+// Copy `n` slots from `src` to `dest`
+fn memcpy(dest, src, n) {
+    let src_end = src + n
+    for (let p = src; p < src_end; p=p+1) {
+        let value = get(p)
+        set(dest, value)
+        dest = dest + 1
     }
 }
 
@@ -92,12 +108,61 @@ fn substr(dest, src, start_index, end_index) {
 }
 
 
-// Copy `n` slots from `src` to `dest`
-fn memcpy(dest, src, n) {
-    let src_end = src + n
-    for (let p = src; p < src_end; p = p + 1) {
-        let value = get(p)
-        set(dest, value)
-        dest = dest + 1
+// Inserts `value` into a pattern string based on the first formatting code
+// - %i -- Format integer
+// - %s -- Format string
+fn format(dest, pattern, value) {
+    let int_buffer[12]
+
+    let scan_for_code = 0
+    let code_seen = 0
+
+    let dest_len = 0
+    let p_dest = dest+1
+
+    let pattern_end = pattern+1 + get(pattern)
+    for (let p_pattern = pattern+1; p_pattern < pattern_end; p_pattern=p_pattern+1) {
+        let char = get(p_pattern)
+
+        if scan_for_code {
+            scan_for_code = 0
+            let copy_buffer = -1
+            if char == _FORMAT_CODE_INT {
+                code_seen = 1
+                int_to_str(int_buffer, value)
+                copy_buffer = int_buffer
+            }
+            else if char == _FORMAT_CODE_STRING {
+                code_seen = 1
+                copy_buffer = value
+            }
+            else {
+                set(p_dest, _FORMAT_CODE_PREFIX)
+                p_dest = p_dest+1
+                set(p_dest, char)
+                dest_len = dest_len + 2
+            }
+            
+            // Copy chars from copy buffer to dest
+            if copy_buffer != -1 {
+                let buffer_len = get(copy_buffer)
+                memcpy(p_dest, copy_buffer+1, buffer_len)
+                dest_len = dest_len+buffer_len
+                p_dest = p_dest+buffer_len
+            }
+        }
+        else {
+            if (char == _FORMAT_CODE_PREFIX) * !code_seen {
+                scan_for_code = 1
+            }
+            else {
+                set(p_dest, char)
+                p_dest = p_dest+1
+                dest_len = dest_len + 1
+            }
+        }
+
     }
+
+    set(dest, dest_len)
 }
