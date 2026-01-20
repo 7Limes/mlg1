@@ -11,22 +11,28 @@ define _AUDIO_CHANNELS 8
 define _EVENT_SIZE 3  // Slots
 
 
+global __song_data, __song_byte_index, __song_channel_count
+global __channel_waveforms[_AUDIO_CHANNELS]
+
+global __song_timer, __song_entry_count, __song_entry_index
+global __song_next_entry_time, __song_next_entry_events
+global __song_next_events[_AUDIO_CHANNELS * _EVENT_SIZE]
+
+
 fn load_song(song_data) {
-    global __song_data = song_data
-    global __song_byte_index = 0
-    global __song_channel_count = packit_next_u8(song_data, &__song_byte_index)
-    global __channel_waveforms[_AUDIO_CHANNELS]
+    __song_data = song_data
+    __song_byte_index = 0
+    __song_channel_count = packit_next_u8(song_data, &__song_byte_index)
     for (let i = 0; i < __song_channel_count; i=i+1) {
         let waveform = packit_next_u8(song_data, &__song_byte_index)
         set(__channel_waveforms+i, waveform)
     }
 
-    global __song_timer = 0
-    global __song_entry_count = packit_next_s32(song_data, &__song_byte_index)
-    global __song_entry_index = 0
-    global __song_next_entry_time = -1
-    global __song_next_entry_events = 0
-    global __song_next_events[_AUDIO_CHANNELS * _EVENT_SIZE]
+    __song_timer = 0
+    __song_entry_count = packit_next_s32(song_data, &__song_byte_index)
+    __song_entry_index = 0
+    __song_next_entry_time = -1
+    __song_next_entry_events = 0
     _load_next_entry()
 }
 
