@@ -184,3 +184,60 @@ fn formatn(dest, max_length, pattern, value) {
 fn format(dest, pattern, value) {
     return formatn(dest, MAX_INT, pattern, value)
 }
+
+
+fn str_equals(s1, s2) {
+    let s1_length = get(s1)
+    let s2_length = get(s2)
+    if s1_length != s2_length {
+        return 0
+    }
+
+    let p1 = s1+1
+    let p2 = s2+1
+    let p1_end = s1+1 + s1_length
+    while (p1 < p1_end) {
+        let char1 = get(p1)
+        let char2 = get(p2)
+        if char1 != char2 {
+            return 0
+        }
+
+        p1 = p1+1
+        p2 = p2+1
+    }
+
+    return 1
+}
+
+
+fn find_substr(string, substr) {
+    let string_length = get(string)
+    let substr_length = get(substr)
+    if substr_length > string_length {
+        return -1
+    }
+
+    let string_end = string+1 + string_length
+    let substr_start = substr+1
+
+    let string_index = 0
+    let substr_index = 0
+
+    for (let p = string; p < string_end; p=p+1) {
+        let char = get(p)
+        let subchar = get(substr_start+substr_index)
+        if char == subchar {
+            substr_index = substr_index+1
+            if substr_index == substr_length {
+                return string_index - substr_length
+            }
+        }
+        else {
+            substr_index = 0
+        }
+        string_index = string_index + 1
+    }
+
+    return -1
+}
