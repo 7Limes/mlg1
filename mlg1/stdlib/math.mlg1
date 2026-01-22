@@ -6,6 +6,9 @@ define __RAND_MULTIPLIER 1583458089
 
 global __rand_value = 1
 
+define MAX_INT 2147483647
+define MIN_INT -2147483648
+
 
 // Returns `x` clamped to [`lower`, `upper`]
 fn clamp(x, lower, upper) {

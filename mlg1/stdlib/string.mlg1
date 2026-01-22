@@ -111,8 +111,8 @@ fn substr(dest, src, start_index, end_index) {
 // Inserts `value` into a pattern string based on the first formatting code
 // - %i -- Format integer
 // - %s -- Format string
-fn format(dest, pattern, value) {
-    let int_buffer[12]
+fn formatn(dest, max_length, pattern, value) {
+    let temp_buffer[12]
 
     let scan_for_code = 0
     let code_seen = 0
@@ -129,26 +129,36 @@ fn format(dest, pattern, value) {
             let copy_buffer = -1
             if char == _FORMAT_CODE_INT {
                 code_seen = 1
-                int_to_str(int_buffer, value)
-                copy_buffer = int_buffer
+                int_to_str(temp_buffer, value)
+                copy_buffer = temp_buffer
             }
             else if char == _FORMAT_CODE_STRING {
                 code_seen = 1
                 copy_buffer = value
             }
             else {
-                set(p_dest, _FORMAT_CODE_PREFIX)
-                p_dest = p_dest+1
-                set(p_dest, char)
-                dest_len = dest_len + 2
+                set(temp_buffer, 2)
+                set(temp_buffer+1, _FORMAT_CODE_PREFIX)
+                set(temp_buffer+2, char)
+                copy_buffer = temp_buffer
             }
             
-            // Copy chars from copy buffer to dest
-            if copy_buffer != -1 {
-                let buffer_len = get(copy_buffer)
-                memcpy(p_dest, copy_buffer+1, buffer_len)
-                dest_len = dest_len+buffer_len
-                p_dest = p_dest+buffer_len
+            // Copy chars from copy buffer into dest
+            let buffer_end = copy_buffer+1 + get(copy_buffer)
+            let length_overflow = 0
+            for (let p_buf = copy_buffer+1; p_buf < buffer_end; p_buf=p_buf+1) {
+                let buf_char = get(p_buf)
+                set(p_dest, buf_char)
+                p_dest = p_dest+1
+                dest_len = dest_len+1
+                length_overflow = dest_len >= max_length
+                if length_overflow {
+                    break
+                }
+            }
+            
+            if length_overflow {
+                break
             }
         }
         else {
@@ -159,10 +169,18 @@ fn format(dest, pattern, value) {
                 set(p_dest, char)
                 p_dest = p_dest+1
                 dest_len = dest_len + 1
+                if dest_len >= max_length {
+                    break
+                }
             }
         }
-
     }
 
     set(dest, dest_len)
+    return dest_len >= max_length
+}
+
+
+fn format(dest, pattern, value) {
+    return formatn(dest, MAX_INT, pattern, value)
 }
