@@ -1,12 +1,14 @@
 // Iterator functions for packed bytes.
 
+global __PACKIT_DIVISORS[4] = [16777216, 65536, 256, 1]
+
+
 // Return the next byte as an unsigned 8-bit integer and advance.
 fn packit_next_u8(bytes, p_index) {
     let index = get(p_index)
     let chunk = get(bytes + index / 4)
 
-    let DIVISORS[4] = [16777216, 65536, 256, 1]
-    let chunk_divisor = get(DIVISORS + index % 4)
+    let chunk_divisor = get(__PACKIT_DIVISORS + index % 4)
     let division_result = chunk / chunk_divisor
     if (division_result < 0) * (chunk % chunk_divisor) {
         division_result = division_result - 1
