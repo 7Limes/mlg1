@@ -129,6 +129,9 @@ class InitialListener(BaseListener):
         if isinstance(parse_entry_result, str):
             self.error(ctx, parse_entry_result)
 
+        if name in self.data.data_entries:
+            self.error(ctx, f'Data identifier "{name}" declared twice.')
+        
         self.data.data_entries[name] = {
             'data_type': 'file',
             'operation': operation,
@@ -192,10 +195,15 @@ class MemoryListener(BaseListener):
             
             # Add string data entry if necessary
             if string_token is not None:
+                if name in self.data.data_entries:
+                    self.error(declared_var_token, f'Variable name "{name}" declared twice.')
+                
+                string_data: str = string_token.getText()[1:-1]
+                
                 self.data.data_entries[name] = {
                     'data_type': 'string',
                     'operation': 'raw',
-                    'data': string_token.getText()[1:-1],
+                    'data': string_data,
                     'var_address': self.data.current_address
                 }
 
