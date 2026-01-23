@@ -1,6 +1,8 @@
 include "math"
 
 
+define _HYPHEN 45
+
 define _FORMAT_CODE_PREFIX 37   // '%'
 define _FORMAT_CODE_INT 105     // 'i'
 define _FORMAT_CODE_STRING 115  // 's'
@@ -32,6 +34,60 @@ fn int_to_str(buffer, x) {
         x = x / 10
         set(i, digit)
     }
+}
+
+
+// Convert a string to an integer.
+fn str_to_int(p_dest, string) {
+    let string_length = get(string)
+    if (string_length == 0) {
+        return 1
+    }
+
+    // Error check for singular hyphen
+    let first_char = get(string+1)
+    if (string_length == 1) * (first_char == _HYPHEN) {
+        return 1
+    }
+
+    let string_end = string+1 + string_length
+
+    // Check for unrecognized characters
+    for (let p = string+1; p < string_end; p=p+1) {
+        let check_char = get(p)
+        if (p == string+1) * (check_char == _HYPHEN) {
+            // Skip if the first char is a hyphen
+            continue
+        }
+
+        if (check_char < 48) + (check_char >= 58) {
+            // Return error code for unrecognized character
+            return 1
+        }
+    }
+
+    // Construct the integer value
+    let int_value = 0
+    let factor = 1
+    for (p = string_end-1; p > string; p=p-1) {
+        let digit_char = get(p)
+        if (digit_char == _HYPHEN) {
+            break
+        }
+
+        let digit = digit_char - 48
+        int_value = int_value + digit*factor
+        factor = factor*10
+    }
+
+    // Apply negative
+    let is_negative = first_char == _HYPHEN
+    if is_negative {
+        int_value = -int_value
+    }
+
+    set(p_dest, int_value)
+    return 0
 }
 
 
