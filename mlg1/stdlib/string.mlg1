@@ -9,7 +9,7 @@ define _FORMAT_CODE_STRING 115  // 's'
 
 
 // Convert an integer to an ascii encoded string
-fn int_to_str(buffer, x) {
+fn int_to_str(p_dest, x) {
     let amount_digits = x == 0
     let is_negative = x < 0
     x = abs(x)
@@ -21,15 +21,15 @@ fn int_to_str(buffer, x) {
     }
 
     if is_negative {
-        set(buffer, amount_digits+1)  // Set the length of the string
-        buffer = buffer + 1
-        set(buffer, 45)  // Set hyphen for negative
+        set(p_dest, amount_digits+1)  // Set the length of the string
+        p_dest = p_dest + 1
+        set(p_dest, 45)  // Set hyphen for negative
     }
     else {
-        set(buffer, amount_digits)  // Set the length of the string
+        set(p_dest, amount_digits)  // Set the length of the string
     }
 
-    for (let i = buffer+amount_digits; i > buffer; i = i - 1) {
+    for (let i = p_dest+amount_digits; i > p_dest; i = i - 1) {
         let digit = x % 10 + 48
         x = x / 10
         set(i, digit)
@@ -91,30 +91,30 @@ fn str_to_int(p_dest, string) {
 }
 
 
-// Copy `n` slots from `src` to `dest`
-fn memcpy(dest, src, n) {
+// Copy `n` slots from `src` to `p_dest`
+fn memcpy(p_dest, src, n) {
     let src_end = src + n
     for (let p = src; p < src_end; p=p+1) {
         let value = get(p)
-        set(dest, value)
-        dest = dest + 1
+        set(p_dest, value)
+        p_dest = p_dest + 1
     }
 }
 
 
-// Copy no more than `n` characters of `src` into `dest`.
-fn strncpy(dest, src, n) {
+// Copy no more than `n` characters of `src` into `p_dest`.
+fn strncpy(p_dest, src, n) {
     let src_length = get(src)
     let iterations = min(src_length, n)
     let src_end = src + 1 + iterations
 
-    set(dest, src_length)
-    dest = dest + 1
+    set(p_dest, src_length)
+    p_dest = p_dest + 1
 
     for (let p = src + 1; p < src_end; p = p + 1) {
         let char = get(p)
-        set(dest, char)
-        dest = dest + 1
+        set(p_dest, char)
+        p_dest = p_dest + 1
     }
 }
 
@@ -137,8 +137,8 @@ fn strncat(s1, s2, n) {
 }
 
 
-// Copy a substring of `src` into `dest`
-fn substr(dest, src, start_index, end_index) {
+// Copy a substring of `src` into `p_dest`
+fn substr(p_dest, src, start_index, end_index) {
     if start_index > end_index {
         return -1
     }
@@ -150,14 +150,14 @@ fn substr(dest, src, start_index, end_index) {
     }
 
     let substr_length = end_index - start_index + 1
-    set(dest, substr_length)
-    dest = dest + 1
+    set(p_dest, substr_length)
+    p_dest = p_dest + 1
 
     let substr_end = src + start_index
     for (let p = src+start_index; p < substr_end; p = p + 1) {
         let char = get(p)
-        set(dest, char)
-        dest = dest + 1
+        set(p_dest, char)
+        p_dest = p_dest + 1
     }
 
     return 0
