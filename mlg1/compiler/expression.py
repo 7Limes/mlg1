@@ -155,7 +155,7 @@ class FunctionCallHandler:
             generated_lines.extend(expression_code)
 
         token_position = (self.token.start.line, self.token.start.column)
-        return_label = f'{self.function_name}_return_{token_position[0]}_{token_position[1]}'
+        return_label = f'{self.function_name}_return_{token_position[0]}_{token_position[1]}_{id(self)}'
         final_lines = [
             f'mov ${CALL_STACK_POINTER_ADDRESS} {return_label}',
             f'add {CALL_STACK_POINTER_ADDRESS} ${CALL_STACK_POINTER_ADDRESS} 1',
