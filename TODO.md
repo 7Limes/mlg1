@@ -1,20 +1,22 @@
 # TODO
 
 ## Features
+- Omit unused globals and data entries
+- Const arrays stored as data entries
+- Check for reserved names on constants and file load identifiers
+- Function pointers
+  - Add `function name`: `instruction index` mappings to constant namespace
+  - Implement a builtin `call` function that emits a `jmp` instruction to the specified instruction index.
+- Inline functions
 - Make the user pass in all files to compile instead of having the compiler find them
   - this is better because users won't have to compile from a specific directory every time
   - And the initial listener won't have to raise file not found errors
-- Const arrays stored as data entries
-- Omit unused globals and data entries
-- Use function call tree to optimize local var allocation
-  - Any two functions that are not present in the same branch may share local var space
-- inline functions?
 - better function call register use
   - if there's only 1 function call in an expression, it can use the return register
   - if there's more than 1, then we have to use the arithmetic registers
-- Check for reserved names on constants and file load identifiers
-
 - Option to include user-written comments in generated code
+- Use function call tree to optimize local var allocation
+  - Any two functions that are not present in the same branch may share local var space
 
 ## Refactors
 - Organize constants.py
@@ -24,6 +26,8 @@
   - Makes comment generation easier
 
 ## Bugs
+- String vars check for redeclarations globally, even if they're declared locally
+  - If you declare 2 local strings with the same name in different functions, you get a declared twice error
 - Duplicate string values create duplicate data entries
   - Just make them reference the same one
 - trying to assign before declaration doesnt have a proper error message
