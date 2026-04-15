@@ -33,8 +33,7 @@ fn abs(x) {
 
 // Returns -1 if `x` is negative, 1 if `x` is positive, and 0 if `x` is 0
 fn signof(x) {
-    let is_negative = x < 0
-    return (-is_negative + !is_negative) * (x != 0)
+    return ((x > 0) * 2 - 1) * (x != 0)
 }
 
 
